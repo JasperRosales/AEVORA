@@ -1,18 +1,26 @@
+import { CalendarCheck, CheckCircle, Home, LayoutGrid } from "lucide-react"
 import { useMemo, useState } from "react"
 import { cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
+import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { plots } from "@/data/mock"
+import { cemeteries, plots } from "@/data/mock"
 import { formatCurrency } from "@/lib/format"
 import { usePagination } from "@/lib/use-pagination"
-import type { Plot } from "@/types/domain"
 
 export function PlotsPage() {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")
-  const [selected, setSelected] = useState<Plot | null>(null)
+  const [cemeteryFilter, setCemeteryFilter] = useState("All")
+
+  const clearFilters = () => {
+    setQuery("")
+    setStatusFilter("All")
+    setTypeFilter("All")
+    setCemeteryFilter("All")
+  }
 
   const filtered = useMemo(
     () =>
@@ -21,14 +29,27 @@ export function PlotsPage() {
           (p.plotNumber.toLowerCase().includes(query.toLowerCase()) ||
             p.section.toLowerCase().includes(query.toLowerCase())) &&
           (statusFilter === "All" || p.status === statusFilter) &&
-          (typeFilter === "All" || p.type === typeFilter),
+          (typeFilter === "All" || p.type === typeFilter) &&
+          (cemeteryFilter === "All" || p.cemeteryId === cemeteryFilter),
       ),
-    [query, statusFilter, typeFilter],
+    [query, statusFilter, typeFilter, cemeteryFilter],
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 12)
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {(
+          [
+            { label: "Total Plots", value: plots.length, icon: LayoutGrid, trend: { up: false, text: "6%" } },
+            { label: "Available Plots", value: plots.filter((p) => p.status === "Available").length, icon: CheckCircle, trend: { up: true, text: "2%" } },
+            { label: "Reserved Plots", value: plots.filter((p) => p.status === "Reserved").length, icon: CalendarCheck, trend: { up: true, text: "3%" } },
+            { label: "Occupied Plots", value: plots.filter((p) => p.status === "Occupied").length, icon: Home, trend: { up: false, text: "4%" } },
+          ] as const
+        ).map(({ label, value, icon, trend }) => (
+          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
+        ))}
+      </div>
       <Card title="Plot Records">
         <div className="mb-3 flex flex-wrap gap-2">
           <input
@@ -67,6 +88,24 @@ export function PlotsPage() {
               </option>
             ))}
           </select>
+          <select
+            value={cemeteryFilter}
+            onChange={(e) => setCemeteryFilter(e.target.value)}
+            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+          >
+            <option value="All">All Cemeteries</option>
+            {cemeteries.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={clearFilters}
+            className="neu-button px-3 py-1.5 text-sm"
+          >
+            Clear Filters
+          </button>
         </div>
         <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
@@ -78,15 +117,12 @@ export function PlotsPage() {
               <th>Size</th>
               <th>Price</th>
               <th>Status</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr
-                key={p.id}
-                className="cursor-pointer border-t border-deep/10"
-                onClick={() => setSelected(p)}
-              >
+              <tr key={p.id} className="border-t border-deep/10">
                 <td className="py-1.5">{p.plotNumber}</td>
                 <td>{cemeteryName(p.cemeteryId)}</td>
                 <td>Section {p.section}</td>
@@ -96,59 +132,19 @@ export function PlotsPage() {
                 <td>
                   <StatusBadge status={p.status} />
                 </td>
+                <td>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    Edit
+                  </button>{" "}
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </table></div>
         <Pagination page={page} pageCount={pageCount} onChange={setPage} />
-      </Card>
-
-      <Card title="Plot Details">
-        {selected ? (
-          <dl className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <dt>Plot Number</dt>
-              <dd className="font-semibold">{selected.plotNumber}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Cemetery</dt>
-              <dd>{cemeteryName(selected.cemeteryId)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Section</dt>
-              <dd>Section {selected.section}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Type</dt>
-              <dd>{selected.type}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Price</dt>
-              <dd>{formatCurrency(selected.price)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Status</dt>
-              <dd>
-                <StatusBadge status={selected.status} />
-              </dd>
-            </div>
-            <div className="mt-3 flex gap-2">
-              <button className="neu-button px-3 py-1.5 text-xs">
-                Edit Plot
-              </button>
-              <button className="neu-button px-3 py-1.5 text-xs">
-                View History
-              </button>
-              <button className="neu-button px-3 py-1.5 text-xs">
-                Map Location
-              </button>
-            </div>
-          </dl>
-        ) : (
-          <p className="text-sm text-deep/70">
-            Select a plot to view and edit its record.
-          </p>
-        )}
       </Card>
     </div>
   )

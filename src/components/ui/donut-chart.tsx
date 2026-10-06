@@ -19,7 +19,7 @@ export function DonutChart({
 
   return (
     <div className="flex items-center gap-6">
-      <svg width={150} height={150} viewBox="0 0 150 150">
+      <svg className="h-52 w-52 shrink-0" viewBox="0 0 150 150">
         <circle
           cx={75}
           cy={75}
@@ -59,17 +59,24 @@ export function DonutChart({
           {centerLabel}
         </text>
       </svg>
-      <ul className="space-y-1 text-sm">
+      <div className="flex-1 text-base">
         {segments.map((segment) => (
-          <li key={segment.label} className="flex items-center gap-2">
+          <div
+            key={segment.label}
+            className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-x-3 py-1"
+          >
             <span
               className="inline-block h-3 w-3 rounded-sm"
               style={{ backgroundColor: segment.color }}
             />
-            {segment.label}: <strong>{segment.value}</strong>
-          </li>
+            <span>{segment.label}:</span>
+            <strong className="text-center">{segment.value}</strong>
+            <strong className="text-right">
+              {total ? Math.round((segment.value / total) * 100) : 0}%
+            </strong>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   )
 }

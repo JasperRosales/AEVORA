@@ -1,23 +1,25 @@
+import { CheckCircle, Clock, Search, XCircle } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
+import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteryName } from "@/components/cemetery-selector"
 import { reservations } from "@/data/mock"
 import { usePagination } from "@/lib/use-pagination"
 
-const flowSteps = [
-  "Choose Plot",
-  "Enter Information",
-  "Upload Valid ID",
-  "Information Checking",
-  "Confirmation",
-  "Agreement Created",
-]
-
 export function ReservationsPage() {
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
+  const [verificationFilter, setVerificationFilter] = useState("All")
+  const [burialTypeFilter, setBurialTypeFilter] = useState("All")
+
+  const clearFilters = () => {
+    setQuery("")
+    setStatusFilter("All")
+    setVerificationFilter("All")
+    setBurialTypeFilter("All")
+  }
 
   const filtered = useMemo(
     () =>
@@ -26,37 +28,27 @@ export function ReservationsPage() {
           (r.clientName.toLowerCase().includes(query.toLowerCase()) ||
             r.reservationNumber.toLowerCase().includes(query.toLowerCase()) ||
             r.plotNumber.toLowerCase().includes(query.toLowerCase())) &&
-          (statusFilter === "All" || r.status === statusFilter),
+          (statusFilter === "All" || r.status === statusFilter) &&
+          (verificationFilter === "All" ||
+            r.verification === verificationFilter) &&
+          (burialTypeFilter === "All" || r.burialType === burialTypeFilter),
       ),
-    [query, statusFilter],
+    [query, statusFilter, verificationFilter, burialTypeFilter],
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
   return (
     <div className="space-y-4">
-      <Card title="Reservation Flow">
-        <ol className="flex flex-wrap items-center gap-2 text-xs">
-          {flowSteps.map((step, i) => (
-            <li key={step} className="flex items-center gap-2">
-              <span className="rounded-full bg-deep px-2.5 py-1 text-cream">
-                {i + 1}. {step}
-              </span>
-              {i < flowSteps.length - 1 && <span className="text-deep">→</span>}
-            </li>
-          ))}
-        </ol>
-      </Card>
-
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {(
-          ["Pending", "Under Verification", "Confirmed", "Cancelled"] as const
-        ).map((s) => (
-          <Card key={s}>
-            <p className="text-xs text-deep uppercase">{s}</p>
-            <p className="text-xl font-bold">
-              {reservations.filter((r) => r.status === s).length}
-            </p>
-          </Card>
+          [
+            { label: "Pending Reservations", value: reservations.filter((r) => r.status === "Pending").length, icon: Clock, trend: { up: true, text: "4%" } },
+            { label: "Reservations Under Verification", value: reservations.filter((r) => r.status === "Under Verification").length, icon: Search, trend: { up: true, text: "5%" } },
+            { label: "Confirmed Reservations", value: reservations.filter((r) => r.status === "Confirmed").length, icon: CheckCircle, trend: { up: false, text: "6%" } },
+            { label: "Cancelled Reservations", value: reservations.filter((r) => r.status === "Cancelled").length, icon: XCircle, trend: { up: true, text: "2%" } },
+          ] as const
+        ).map(({ label, value, icon, trend }) => (
+          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
         ))}
       </div>
 
@@ -82,6 +74,41 @@ export function ReservationsPage() {
               ),
             )}
           </select>
+          <select
+            value={verificationFilter}
+            onChange={(e) => setVerificationFilter(e.target.value)}
+            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+          >
+            <option value="All">All Verifications</option>
+            {[
+              "Waiting for Checking",
+              "Under Review",
+              "Verified",
+              "Requires Action",
+            ].map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={burialTypeFilter}
+            onChange={(e) => setBurialTypeFilter(e.target.value)}
+            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+          >
+            <option value="All">All Burial Types</option>
+            {["Private", "Vertical", "Public"].map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+          <button
+            onClick={clearFilters}
+            className="neu-button px-3 py-1.5 text-sm"
+          >
+            Clear Filters
+          </button>
         </div>
         <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
@@ -94,6 +121,7 @@ export function ReservationsPage() {
               <th>Burial Type</th>
               <th>Verification</th>
               <th>Status</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -110,6 +138,10 @@ export function ReservationsPage() {
                 </td>
                 <td>
                   <StatusBadge status={r.status} />
+                </td>
+                <td>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
+                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>
                 </td>
               </tr>
             ))}

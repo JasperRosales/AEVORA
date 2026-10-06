@@ -43,7 +43,7 @@ export function Sidebar({
         <img
           src="/aevora-icon.ico"
           alt="Aevora logo"
-          className="h-9 w-9 rounded-lg ring-2 ring-teal/50"
+          className="h-10 w-10 rounded-lg"
         />
         <div>
           <span className="text-lg font-bold tracking-wide">Aevora</span>

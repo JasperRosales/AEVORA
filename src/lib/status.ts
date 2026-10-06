@@ -13,11 +13,11 @@ const neutral = "bg-navy/10 text-navy/70" // inactive / muted states
 
 export const statusBadgeStyles: Record<string, string> = {
   // Plots
-  Available: positive,
-  Reserved: inProgress,
-  Occupied: "bg-navy/80 text-cream",
-  "Waiting for Checking": inProgress,
-  Unavailable: "bg-navy/10 text-navy/60",
+  Available: "bg-green-100 text-green-800",
+  Reserved: "bg-blue-100 text-blue-800",
+  Occupied: "bg-red-100 text-red-800",
+  "Waiting for Checking": "bg-yellow-100 text-yellow-800",
+  Unavailable: "bg-gray-100 text-gray-500",
   // Reservations
   Pending: inProgress,
   "Under Verification": inProgress,
@@ -47,9 +47,9 @@ export const plotStatusFill: Record<
   PlotStatus,
   { fill: string; fillOpacity?: number; stroke?: string }
 > = {
-  Available: { fill: "var(--color-teal)" },
-  Reserved: { fill: "var(--color-deep)" },
-  Occupied: { fill: "var(--color-navy)" },
-  "Waiting for Checking": { fill: "var(--color-teal)", fillOpacity: 0.45 },
-  Unavailable: { fill: "var(--color-cream)", stroke: "var(--color-deep)" },
+  Available: { fill: "#16a34a" },
+  Reserved: { fill: "#2563eb" },
+  Occupied: { fill: "#dc2626" },
+  "Waiting for Checking": { fill: "#eab308" },
+  Unavailable: { fill: "#f8fafc", stroke: "#9ca3af" },
 }

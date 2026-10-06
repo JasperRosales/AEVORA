@@ -2,26 +2,28 @@ import {
   Banknote,
   CalendarCheck,
   CalendarPlus,
+  CheckCircle,
+  Clock,
   ClipboardCheck,
   CreditCard,
   FileSignature,
   FileText,
+  Home,
   LayoutGrid,
   Map,
   PieChart,
   Users,
   UserPlus,
 } from "lucide-react"
-import { motion } from "motion/react"
 import { useMemo, useState } from "react"
 import { CemeterySelector, cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
 import { DonutChart } from "@/components/ui/donut-chart"
+import { KpiTile } from "@/components/ui/kpi-tile"
 import { StatusBadge } from "@/components/ui/status-badge"
 import {
   activities,
   agreements,
-  clients,
   notifications,
   payments,
   plots,
@@ -32,7 +34,7 @@ import { countByStatus, formatCurrency } from "@/lib/format"
 const quickActions = [
   { label: "Add Client", icon: UserPlus, desc: "Register a new client record" },
   { label: "Add Plot", icon: LayoutGrid, desc: "Add a new plot to the cemetery" },
-  { label: "View Cemetery Map", icon: Map, desc: "Open the interactive cemetery map" },
+  { label: "View Cemetery Map", icon: Map, desc: "Open the intteractive cemetery map" },
   { label: "Create Reservation", icon: CalendarPlus, desc: "Start a new plot reservation" },
   {
     label: "Review Information Checking",
@@ -66,10 +68,8 @@ export function OverviewPage() {
   const counts = countByStatus(filteredPlots)
 
   const occupancy = filteredPlots.length
-    ? Math.round(
-        ((counts["Occupied"] ?? 0) + (counts["Reserved"] ?? 0)) /
-          filteredPlots.length,
-      ) * 100
+    ? Math.round(((counts["Occupied"] ?? 0) / filteredPlots.length) * 100) +
+      Math.round(((counts["Reserved"] ?? 0) / filteredPlots.length) * 100)
     : 0
 
   const totalCollected = payments
@@ -106,30 +106,17 @@ export function OverviewPage() {
         </div>
       </Card>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
-        {[
-          ["Total Plots", filteredPlots.length],
-          ["Available", counts["Available"] ?? 0],
-          ["Reserved", counts["Reserved"] ?? 0],
-          ["Occupied", counts["Occupied"] ?? 0],
-          ["Waiting for Checking", counts["Waiting for Checking"] ?? 0],
-          ["Total Clients", clients.length],
-        ].map(([label, value], i) => (
-          <motion.div
-            key={label as string}
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: i * 0.05, duration: 0.25 }}
-            className="neu p-4"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-[10px] tracking-tight whitespace-nowrap text-deep uppercase">
-                {label}
-              </p>
-              <span className="size-3 animate-pulse rounded-full bg-navy shadow-[0_0_10px_3px_rgba(6,22,51,0.6)]" />
-            </div>
-            <p className="text-2xl font-bold">{value}</p>
-          </motion.div>
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {(
+          [
+            { label: "Total Plots", value: filteredPlots.length, icon: LayoutGrid, trend: { up: false, text: "6%" } },
+            { label: "Available", value: counts["Available"] ?? 0, icon: CheckCircle, trend: { up: true, text: "2%" } },
+            { label: "Reserved", value: counts["Reserved"] ?? 0, icon: CalendarCheck, trend: { up: true, text: "3%" } },
+            { label: "Occupied", value: counts["Occupied"] ?? 0, icon: Home, trend: { up: false, text: "4%" } },
+            { label: "Waiting for Checking", value: counts["Waiting for Checking"] ?? 0, icon: Clock, trend: { up: true, text: "5%" } },
+          ] as const
+        ).map(({ label, value, icon, trend }) => (
+          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
         ))}
       </div>
 
@@ -141,29 +128,41 @@ export function OverviewPage() {
               {
                 label: "Available",
                 value: counts["Available"] ?? 0,
-                color: "#4F7894",
+                color: "#16a34a",
               },
               {
                 label: "Reserved",
                 value: counts["Reserved"] ?? 0,
-                color: "#102B52",
+                color: "#2563eb",
               },
               {
                 label: "Occupied",
                 value: counts["Occupied"] ?? 0,
-                color: "#061633",
+                color: "#dc2626",
               },
               {
                 label: "Waiting",
                 value: counts["Waiting for Checking"] ?? 0,
-                color: "#4F7894",
-                opacity: 0.45,
+                color: "#eab308",
+                opacity: 1,
               },
             ]}
           />
-          <p className="mt-2 text-xs text-deep">
-            Occupancy rate {occupancy}% of {filteredPlots.length} total plots.
-          </p>
+          <div className="mt-3 border-t border-deep/15 pt-3">
+            <p className="text-sm">
+              <strong className="text-lg">{filteredPlots.length}</strong>{" "}
+              total plots
+            </p>
+            <div className="mt-2 flex h-2.5 overflow-hidden rounded-full bg-navy/10">
+              <span
+                className="bg-teal"
+                style={{ width: `${occupancy}%` }}
+              />
+            </div>
+            <p className="mt-1 text-xs text-deep">
+              Occupancy rate {occupancy}%
+            </p>
+          </div>
         </Card>
 
         <Card title="Quick Actions">
@@ -332,6 +331,10 @@ export function OverviewPage() {
             <div className="neu-sm p-3">
               <p className="text-[11px] text-deep uppercase">Total Agreements</p>
               <p className="text-xl font-bold">{agreements.length}</p>
+               <p className="text-xs text-deep">
+                {agreements.filter((a) => a.status === "Active").length} out of{" "}
+                {agreements.length} agreements are active.
+              </p>
             </div>
             <div>
               <div className="flex h-2.5 overflow-hidden rounded-full">
@@ -386,6 +389,13 @@ export function OverviewPage() {
                   Cancelled
                 </p>
               </div>
+             
+            </div>
+            <div className="flex justify-between neu-sm px-3 py-2 text-sm">
+              <span className="text-deep">Completed Agreements</span>
+              <span className="font-bold">
+                {agreements.filter((a) => a.status === "Completed").length}
+              </span>
             </div>
           </div>
           <div className="mt-3 flex justify-end">

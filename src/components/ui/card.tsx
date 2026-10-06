@@ -10,7 +10,7 @@ export function Card({
   action?: ReactNode
 }) {
   return (
-    <section className="neu p-4">
+    <section className="neu flex flex-col p-4">
       {title && (
         <header className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold tracking-wide uppercase">

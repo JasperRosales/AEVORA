@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react"
-import { Maximize, Minus, Plus } from "lucide-react"
+import { Banknote, CalendarCheck, CheckCircle, Clock, Home, Maximize, Minus, Plus } from "lucide-react"
 import { cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
+import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteries, plots } from "@/data/mock"
@@ -76,17 +77,16 @@ export function CemeteryMapPage() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        {[
-          ["Available", stats.available],
-          ["Reserved", stats.reserved],
-          ["Occupied", stats.occupied],
-          ["Pending Verification", stats.pending],
-          ["Total Revenue", formatCurrency(stats.revenue)],
-        ].map(([label, value]) => (
-          <Card key={label as string}>
-            <p className="text-xs text-deep uppercase">{label}</p>
-            <p className="text-xl font-bold">{value}</p>
-          </Card>
+        {(
+          [
+            { label: "Available Plots", value: stats.available, icon: CheckCircle, trend: { up: false, text: "6%" } },
+            { label: "Reserved Plots", value: stats.reserved, icon: CalendarCheck, trend: { up: true, text: "2%" } },
+            { label: "Occupied Plots", value: stats.occupied, icon: Home, trend: { up: false, text: "3%" } },
+            { label: "Plots Pending Verification", value: stats.pending, icon: Clock, trend: { up: true, text: "4%" } },
+            { label: "Total Revenue", value: formatCurrency(stats.revenue), icon: Banknote, trend: { up: true, text: "5%" } },
+          ] as const
+        ).map(({ label, value, icon, trend }) => (
+          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
         ))}
       </div>
 
@@ -145,6 +145,18 @@ export function CemeteryMapPage() {
             placeholder="Search plot number..."
             className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
           />
+          <button
+            onClick={() => {
+              setCemeteryId(cemeteries[0].id)
+              setBurialType("All")
+              setSection("All")
+              setStatus("All")
+              setSearch("")
+            }}
+            className="neu-button px-3 py-1.5 text-sm"
+          >
+            Clear Filters
+          </button>
           <button
             onClick={locate}
             className="neu-button px-3 py-1.5 text-sm"
@@ -371,15 +383,12 @@ export function CemeteryMapPage() {
                 <th>Status</th>
                 <th>Price</th>
                 <th>Availability</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {visiblePlots.slice((listPage - 1) * 12, listPage * 12).map((p) => (
-                <tr
-                  key={p.id}
-                  className="cursor-pointer border-t border-deep/10"
-                  onClick={() => setSelected(p)}
-                >
+                <tr key={p.id} className="border-t border-deep/10">
                   <td className="py-1.5">{p.plotNumber}</td>
                   <td>Section {p.section}</td>
                   <td>{p.type}</td>
@@ -388,6 +397,10 @@ export function CemeteryMapPage() {
                   </td>
                   <td>{formatCurrency(p.price)}</td>
                   <td>{p.status === "Available" ? "Available" : "Unavailable"}</td>
+                  <td>
+                    <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
+                    <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
