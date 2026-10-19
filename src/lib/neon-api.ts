@@ -1,0 +1,147 @@
+import { getAuthToken } from "@/lib/auth"
+import type {
+  Agreement,
+  AppNotification,
+  Activity,
+  Cemetery,
+  Client,
+  GeneratedReport,
+  Payment,
+  Plot,
+  Reservation,
+} from "@/types/domain"
+
+const BASE = import.meta.env.VITE_NEON_API_URL as string | undefined
+const KEY = import.meta.env.VITE_NEON_API_KEY as string | undefined
+
+/** True when the Neon Function URL + key are present in the environment. */
+export const isNeonConfigured = Boolean(BASE && KEY)
+
+export interface Attachment {
+  id: string
+  reservationId: string
+  key: string
+  filename: string
+  contentType: string
+  size: number
+  createdAt: string
+  url: string
+}
+
+/** Every call carries the user's Neon Auth JWT (falls back to the ops key). */
+export async function apiGet<T>(path: string): Promise<T> {
+  const token = (await getAuthToken()) ?? KEY
+  const res = await fetch(`${BASE}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
+  return (await res.json()) as T
+}
+
+export function fetchAll(): Promise<{
+  cemeteries: Cemetery[]
+  plots: Plot[]
+  reservations: Reservation[]
+  clients: Client[]
+  payments: Payment[]
+  agreements: Agreement[]
+  activities: Activity[]
+  notifications: AppNotification[]
+  reports: GeneratedReport[]
+}> {
+  return Promise.all([
+    apiGet<Cemetery[]>("/cemeteries"),
+    apiGet<Plot[]>("/plots"),
+    apiGet<Reservation[]>("/reservations"),
+    apiGet<Client[]>("/clients"),
+    apiGet<Payment[]>("/payments"),
+    apiGet<Agreement[]>("/agreements"),
+    apiGet<Activity[]>("/activities"),
+    apiGet<AppNotification[]>("/notifications"),
+    apiGet<GeneratedReport[]>("/reports"),
+  ]).then(([cemeteries, plots, reservations, clients, payments, agreements, activities, notifications, reports]) => ({
+    cemeteries,
+    plots,
+    reservations,
+    clients,
+    payments,
+    agreements,
+    activities,
+    notifications,
+    reports,
+  }))
+}
+
+export function fetchAttachments(reservationId: string): Promise<Attachment[]> {
+  return apiGet<Attachment[]>(`/reservations/${reservationId}/attachments`)
+}
+
+/** Uploads a file to the `assets` bucket via the API function. */
+export async function uploadAttachment(
+  reservationId: string,
+  file: File,
+): Promise<Attachment> {
+  const form = new FormData()
+  form.append("file", file)
+  const token = (await getAuthToken()) ?? KEY
+  const res = await fetch(`${BASE}/reservations/${reservationId}/attachments`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  })
+  if (!res.ok) throw new Error(`upload → ${res.status}`)
+  return (await res.json()) as Attachment
+}
+
+/* ---------------- staff accounts (admin only) ---------------- */
+
+export interface StaffUser {
+  id: string
+  email: string
+  name: string
+  role: string
+  createdAt: string
+}
+
+async function apiSend<T>(
+  method: "POST" | "DELETE",
+  path: string,
+  body?: unknown,
+): Promise<T> {
+  const token = (await getAuthToken()) ?? KEY
+  const res = await fetch(`${BASE}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  const payload = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const message = (payload as { error?: string }).error ?? `${method} ${path} → ${res.status}`
+    throw new Error(message)
+  }
+  return payload as T
+}
+
+export function fetchStaff(): Promise<StaffUser[]> {
+  return apiGet<StaffUser[]>("/staff")
+}
+
+export function createStaff(input: {
+  name: string
+  email: string
+  password: string
+  role: "staff" | "admin" | "client"
+}): Promise<StaffUser> {
+  return apiSend<StaffUser>("POST", "/staff", input)
+}
+
+export function deleteStaff(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/staff/${id}`)
+}
+
+export function deleteAttachment(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/attachments/${id}`)
+}

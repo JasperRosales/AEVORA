@@ -6,19 +6,12 @@ import { DonutChart } from "@/components/ui/donut-chart"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import {
-  agreements,
-  cemeteries,
-  clients,
-  generatedReports,
-  payments,
-  plots,
-  reservations,
-} from "@/data/mock"
+import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
+import type { Payment } from "@/types/domain"
 
 function groupRevenue(
-  list: typeof payments,
+  list: Payment[],
   mode: "week" | "month" | "year",
 ) {
   const map = new Map<string, number>()
@@ -50,6 +43,13 @@ function groupRevenue(
     .map(([k, amount]) => ({ label: k.split("|")[1], amount }))
 }
 
+/** Shown when a chart has no rows yet (e.g. before data loads). */
+function ChartEmpty() {
+  return (
+    <p className="py-16 text-center text-xs text-deep/50">No data to display yet.</p>
+  )
+}
+
 function BarChart({
   data,
   formatValue,
@@ -60,6 +60,7 @@ function BarChart({
   const width = 520
   const height = 180
   const pad = 30
+  if (data.length === 0) return <ChartEmpty />
   const max = Math.max(...data.map((d) => d.value), 1)
   const n = data.length || 1
   const slot = (width - pad * 2) / n
@@ -107,6 +108,7 @@ function AreaChart({
   const width = 520
   const height = 180
   const pad = 30
+  if (data.length === 0) return <ChartEmpty />
   const max = Math.max(...data.map((d) => d.amount), 1)
   const points = data.map((d, i) => ({
     x: pad + (data.length === 1 ? (width - pad * 2) / 2 : (i / (data.length - 1)) * (width - pad * 2)),
@@ -168,6 +170,7 @@ function AreaChart({
 }
 
 export function ReportsPage() {
+  const { agreements, cemeteries, clients, generatedReports, payments, plots, reservations } = useData()
   const { page, pageCount, current: reportRows, setPage } = usePagination(
     generatedReports,
     8,

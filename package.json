@@ -12,9 +12,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1152.0",
+    "@aws-sdk/s3-request-presigner": "^3.1152.0",
+    "@neon/config": "^1.9.2",
+    "@neon/env": "^1.6.3",
+    "@neon/functions": "^0.11.0",
+    "@neondatabase/auth": "^0.6.0-beta",
     "@tailwindcss/vite": "^4",
+    "drizzle-orm": "^0.45.4",
+    "hono": "^4.13.13",
+    "jose": "^6.2.12",
     "lucide-react": "^1.52.0",
     "motion": "^14.0.0",
+    "pg": "^8.23.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "tailwindcss": "^4"
@@ -22,6 +32,7 @@
   "devDependencies": {
     "@eslint/js": "^10",
     "@types/node": "^24",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6",
@@ -31,8 +42,12 @@
     "globals": "^17",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8",
     "vite": "^8"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }

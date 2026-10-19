@@ -1,4 +1,4 @@
-import { cemeteries } from "@/data/mock"
+import { getData, useData } from "@/data/store"
 
 export function CemeterySelector({
   value,
@@ -9,6 +9,7 @@ export function CemeterySelector({
   onChange: (value: string) => void
   includeAll?: boolean
 }) {
+  const { cemeteries } = useData()
   return (
     <select
       value={value}
@@ -27,5 +28,5 @@ export function CemeterySelector({
 
 export function cemeteryName(id: string): string {
   if (id === "all") return "All Cemeteries"
-  return cemeteries.find((c) => c.id === id)?.name ?? id
+  return getData().cemeteries.find((c) => c.id === id)?.name ?? id
 }

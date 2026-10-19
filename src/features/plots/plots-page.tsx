@@ -5,11 +5,12 @@ import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { cemeteries, plots } from "@/data/mock"
+import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { usePagination } from "@/lib/use-pagination"
 
 export function PlotsPage() {
+  const { cemeteries, plots } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")

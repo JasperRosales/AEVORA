@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { clients } from "@/data/mock"
+import { useData } from "@/data/store"
 import { usePagination } from "@/lib/use-pagination"
 
 export function ClientsPage() {
+  const { clients } = useData()
   const [query, setQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")

@@ -33,9 +33,12 @@ const pages: { name: Page; icon: typeof Map }[] = [
 export function Sidebar({
   active,
   onNavigate,
+  onPrefetch,
 }: {
   active: Page
   onNavigate: (page: Page) => void
+  /** Warms the page's code chunk before it is clicked (hover/keyboard focus). */
+  onPrefetch?: (page: Page) => void
 }) {
   return (
     <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col bg-navy p-4 text-cream shadow-xl">
@@ -55,6 +58,8 @@ export function Sidebar({
           <button
             key={name}
             onClick={() => onNavigate(name)}
+            onMouseEnter={() => onPrefetch?.(name)}
+            onFocus={() => onPrefetch?.(name)}
             className={`flex items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-all duration-200 ${
               active === name
                 ? "bg-white/10 text-cream shadow-[inset_3px_3px_6px_rgba(0,0,0,0.35),inset_-3px_-3px_6px_rgba(255,255,255,0.06)]"

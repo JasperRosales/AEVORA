@@ -1,7 +1,17 @@
 import { Bell, LogOut, Search } from "lucide-react"
-import { notifications } from "@/data/mock"
+import { signOut, useSession } from "@/data/session"
+import { useData } from "@/data/store"
 
 export function Header({ title }: { title: string }) {
+  const { notifications } = useData()
+  const { user } = useSession()
+  const initials = (user?.name ?? "?")
+    .split(/\s+/)
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase()
+
   return (
     <header className="flex items-center gap-4 bg-cream/90 px-6 py-3 shadow-[0_6px_16px_rgba(12,44,85,0.08)] backdrop-blur">
       <div>
@@ -30,11 +40,17 @@ export function Header({ title }: { title: string }) {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-deep text-sm font-bold text-cream">
-            K
+            {initials}
           </div>
           <div>
-            <p className="text-sm leading-tight font-medium">Kyle (Admin)</p>
-            <button className="flex items-center gap-1 text-xs text-navy/70 hover:underline">
+            <p className="text-sm leading-tight font-medium">
+              {user?.name ?? "Signed in"}{" "}
+              <span className="text-xs text-deep/50">({user?.role})</span>
+            </p>
+            <button
+              onClick={() => void signOut()}
+              className="flex items-center gap-1 text-xs text-navy/70 hover:underline"
+            >
               <LogOut size={11} /> Logout
             </button>
           </div>

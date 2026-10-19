@@ -1,18 +1,96 @@
-import { CheckCircle, Clock, Search, XCircle } from "lucide-react"
-import { useMemo, useState } from "react"
+import { CheckCircle, Clock, Paperclip, Search, Upload, XCircle } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteryName } from "@/components/cemetery-selector"
-import { reservations } from "@/data/mock"
+import { addAttachment, loadAttachments, useData } from "@/data/store"
 import { usePagination } from "@/lib/use-pagination"
+import type { Reservation } from "@/types/domain"
+
+/** Attachment upload/list backed by Neon Object Storage (the `assets` bucket). */
+function ReservationFiles({ reservation }: { reservation: Reservation }) {
+  const { attachments } = useData()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const rows = attachments.filter((a) => a.reservationId === reservation.id)
+
+  useEffect(() => {
+    setBusy(true)
+    setError(null)
+    loadAttachments(reservation.id)
+      .catch((err) => setError(String(err)))
+      .finally(() => setBusy(false))
+  }, [reservation.id])
+
+  async function onUpload(file: File | undefined) {
+    if (!file) return
+    setBusy(true)
+    setError(null)
+    try {
+      await addAttachment(reservation.id, file)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setBusy(false)
+      if (inputRef.current) inputRef.current.value = ""
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-lg border border-deep/15 bg-cream/60 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        <Paperclip size={14} className="text-deep" />
+        <p className="text-sm font-medium">
+          Files — {reservation.reservationNumber} ({reservation.clientName})
+        </p>
+        <label className="neu-button ml-auto inline-flex cursor-pointer items-center gap-1 px-3 py-1 text-xs">
+          <Upload size={12} /> {busy ? "Working..." : "Upload file"}
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            disabled={busy}
+            onChange={(e) => onUpload(e.target.files?.[0])}
+          />
+        </label>
+      </div>
+      {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
+      {rows.length === 0 ? (
+        <p className="text-xs text-deep/60">
+          {busy ? "Loading..." : "No files yet — uploaded documents are stored in Neon Object Storage."}
+        </p>
+      ) : (
+        <ul className="space-y-1">
+          {rows.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 text-xs">
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-navy underline-offset-2 hover:underline"
+              >
+                {a.filename}
+              </a>
+              <span className="text-deep/60">{Math.max(1, Math.round(a.size / 1024))} KB</span>
+              <span className="text-deep/40">{new Date(a.createdAt).toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
 
 export function ReservationsPage() {
+  const { reservations } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [verificationFilter, setVerificationFilter] = useState("All")
   const [burialTypeFilter, setBurialTypeFilter] = useState("All")
+  const [filesFor, setFilesFor] = useState<string | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -141,13 +219,24 @@ export function ReservationsPage() {
                 </td>
                 <td>
                   <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>{" "}
+                  <button
+                    onClick={() => setFilesFor(filesFor === r.id ? null : r.id)}
+                    className="neu-button px-2.5 py-1 text-[11px]"
+                  >
+                    Files
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table></div>
         <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+        {filesFor && (
+          <ReservationFiles
+            reservation={reservations.find((r) => r.id === filesFor)!}
+          />
+        )}
       </Card>
     </div>
   )

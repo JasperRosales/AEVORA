@@ -5,10 +5,11 @@ import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteryName } from "@/components/cemetery-selector"
-import { agreements } from "@/data/mock"
+import { useData } from "@/data/store"
 import { usePagination } from "@/lib/use-pagination"
 
 export function AgreementsPage() {
+  const { agreements } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")

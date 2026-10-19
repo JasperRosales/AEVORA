@@ -4,11 +4,12 @@ import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { payments } from "@/data/mock"
+import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { usePagination } from "@/lib/use-pagination"
 
 export function PaymentsPage() {
+  const { payments } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [methodFilter, setMethodFilter] = useState("All")
