@@ -1,0 +1,6 @@
+# The API is a Neon Function (deployed by `neon deploy`, see neon.ts),
+# not a Vercel Function — keep it out of the Vercel build.
+api/
+
+# Local secrets are never uploaded; env comes from project settings.
+.env*
