@@ -1,11 +1,20 @@
-import { CheckCircle, Clock, Paperclip, Search, Upload, XCircle } from "lucide-react"
+import {
+  CheckCircle,
+  Clock,
+  Paperclip,
+  Search,
+  Upload,
+  XCircle,
+} from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
+import { AnimatePresence, motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteryName } from "@/components/cemetery-selector"
 import { addAttachment, loadAttachments, useData } from "@/data/store"
+import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
 import type { Reservation } from "@/types/domain"
 
@@ -60,12 +69,23 @@ function ReservationFiles({ reservation }: { reservation: Reservation }) {
       {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
       {rows.length === 0 ? (
         <p className="text-xs text-deep/60">
-          {busy ? "Loading..." : "No files yet — uploaded documents are stored in Neon Object Storage."}
+          {busy
+            ? "Loading..."
+            : "No files yet — uploaded documents are stored in Neon Object Storage."}
         </p>
       ) : (
-        <ul className="space-y-1">
+        <motion.ul
+          variants={stagger(0.04)}
+          initial="hidden"
+          animate="show"
+          className="space-y-1"
+        >
           {rows.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 text-xs">
+            <motion.li
+              key={a.id}
+              variants={rowItem}
+              className="flex items-center gap-3 text-xs"
+            >
               <a
                 href={a.url}
                 target="_blank"
@@ -74,11 +94,15 @@ function ReservationFiles({ reservation }: { reservation: Reservation }) {
               >
                 {a.filename}
               </a>
-              <span className="text-deep/60">{Math.max(1, Math.round(a.size / 1024))} KB</span>
-              <span className="text-deep/40">{new Date(a.createdAt).toLocaleString()}</span>
-            </li>
+              <span className="text-deep/60">
+                {Math.max(1, Math.round(a.size / 1024))} KB
+              </span>
+              <span className="text-deep/40">
+                {new Date(a.createdAt).toLocaleString()}
+              </span>
+            </motion.li>
           ))}
-        </ul>
+        </motion.ul>
       )}
     </div>
   )
@@ -109,135 +133,203 @@ export function ReservationsPage() {
           (statusFilter === "All" || r.status === statusFilter) &&
           (verificationFilter === "All" ||
             r.verification === verificationFilter) &&
-          (burialTypeFilter === "All" || r.burialType === burialTypeFilter),
+          (burialTypeFilter === "All" || r.burialType === burialTypeFilter)
       ),
-    [query, statusFilter, verificationFilter, burialTypeFilter],
+    [query, statusFilter, verificationFilter, burialTypeFilter]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <motion.div
+      variants={stagger(0.08, 0.03)}
+      initial="hidden"
+      animate="show"
+      className="space-y-4"
+    >
+      <motion.div
+        variants={stagger(0.06, 0.05)}
+        className="grid grid-cols-2 gap-3 md:grid-cols-4"
+      >
         {(
           [
-            { label: "Pending Reservations", value: reservations.filter((r) => r.status === "Pending").length, icon: Clock, trend: { up: true, text: "4%" } },
-            { label: "Reservations Under Verification", value: reservations.filter((r) => r.status === "Under Verification").length, icon: Search, trend: { up: true, text: "5%" } },
-            { label: "Confirmed Reservations", value: reservations.filter((r) => r.status === "Confirmed").length, icon: CheckCircle, trend: { up: false, text: "6%" } },
-            { label: "Cancelled Reservations", value: reservations.filter((r) => r.status === "Cancelled").length, icon: XCircle, trend: { up: true, text: "2%" } },
+            {
+              label: "Pending Reservations",
+              value: reservations.filter((r) => r.status === "Pending").length,
+              icon: Clock,
+              trend: { up: true, text: "4%" },
+            },
+            {
+              label: "Reservations Under Verification",
+              value: reservations.filter(
+                (r) => r.status === "Under Verification"
+              ).length,
+              icon: Search,
+              trend: { up: true, text: "5%" },
+            },
+            {
+              label: "Confirmed Reservations",
+              value: reservations.filter((r) => r.status === "Confirmed")
+                .length,
+              icon: CheckCircle,
+              trend: { up: false, text: "6%" },
+            },
+            {
+              label: "Cancelled Reservations",
+              value: reservations.filter((r) => r.status === "Cancelled")
+                .length,
+              icon: XCircle,
+              trend: { up: true, text: "2%" },
+            },
           ] as const
         ).map(({ label, value, icon, trend }) => (
-          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
-        ))}
-      </div>
-
-      <Card title="Reservation Records">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search reservation, client, or plot..."
-            className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
+          <KpiTile
+            key={label}
+            label={label}
+            value={value}
+            icon={icon}
+            trend={trend}
           />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
-          >
-            <option value="All">All Statuses</option>
-            {["Pending", "Under Verification", "Confirmed", "Cancelled"].map(
-              (s) => (
+        ))}
+      </motion.div>
+
+      <motion.div variants={fadeUp}>
+        <Card title="Reservation Records">
+          <div className="mb-3 flex flex-wrap gap-2">
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search reservation, client, or plot..."
+              className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+            >
+              <option value="All">All Statuses</option>
+              {["Pending", "Under Verification", "Confirmed", "Cancelled"].map(
+                (s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                )
+              )}
+            </select>
+            <select
+              value={verificationFilter}
+              onChange={(e) => setVerificationFilter(e.target.value)}
+              className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+            >
+              <option value="All">All Verifications</option>
+              {[
+                "Waiting for Checking",
+                "Under Review",
+                "Verified",
+                "Requires Action",
+              ].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
-              ),
-            )}
-          </select>
-          <select
-            value={verificationFilter}
-            onChange={(e) => setVerificationFilter(e.target.value)}
-            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
-          >
-            <option value="All">All Verifications</option>
-            {[
-              "Waiting for Checking",
-              "Under Review",
-              "Verified",
-              "Requires Action",
-            ].map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          <select
-            value={burialTypeFilter}
-            onChange={(e) => setBurialTypeFilter(e.target.value)}
-            className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
-          >
-            <option value="All">All Burial Types</option>
-            {["Private", "Vertical", "Public"].map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={clearFilters}
-            className="neu-button px-3 py-1.5 text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
-        <div className="overflow-x-auto"><table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-deep uppercase">
-              <th>Reservation No.</th>
-              <th>Client</th>
-              <th>Cemetery</th>
-              <th>Plot</th>
-              <th>Date</th>
-              <th>Burial Type</th>
-              <th>Verification</th>
-              <th>Status</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-deep/10">
-                <td className="py-1.5">{r.reservationNumber}</td>
-                <td>{r.clientName}</td>
-                <td>{cemeteryName(r.cemeteryId)}</td>
-                <td>{r.plotNumber}</td>
-                <td>{r.date}</td>
-                <td>{r.burialType}</td>
-                <td>
-                  <StatusBadge status={r.verification} />
-                </td>
-                <td>
-                  <StatusBadge status={r.status} />
-                </td>
-                <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>{" "}
-                  <button
-                    onClick={() => setFilesFor(filesFor === r.id ? null : r.id)}
-                    className="neu-button px-2.5 py-1 text-[11px]"
+              ))}
+            </select>
+            <select
+              value={burialTypeFilter}
+              onChange={(e) => setBurialTypeFilter(e.target.value)}
+              className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
+            >
+              <option value="All">All Burial Types</option>
+              {["Private", "Vertical", "Public"].map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={clearFilters}
+              className="neu-button px-3 py-1.5 text-sm"
+            >
+              Clear Filters
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-deep uppercase">
+                  <th>Reservation No.</th>
+                  <th>Client</th>
+                  <th>Cemetery</th>
+                  <th>Plot</th>
+                  <th>Date</th>
+                  <th>Burial Type</th>
+                  <th>Verification</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <motion.tbody
+                key={page}
+                variants={rowList}
+                initial="hidden"
+                animate="show"
+              >
+                {rows.map((r) => (
+                  <motion.tr
+                    key={r.id}
+                    variants={rowItem}
+                    className="border-t border-deep/10"
                   >
-                    Files
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-        <Pagination page={page} pageCount={pageCount} onChange={setPage} />
-        {filesFor && (
-          <ReservationFiles
-            reservation={reservations.find((r) => r.id === filesFor)!}
-          />
-        )}
-      </Card>
-    </div>
+                    <td className="py-1.5">{r.reservationNumber}</td>
+                    <td>{r.clientName}</td>
+                    <td>{cemeteryName(r.cemeteryId)}</td>
+                    <td>{r.plotNumber}</td>
+                    <td>{r.date}</td>
+                    <td>{r.burialType}</td>
+                    <td>
+                      <StatusBadge status={r.verification} />
+                    </td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                    </td>
+                    <td>
+                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                        Edit
+                      </button>{" "}
+                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                        Delete
+                      </button>{" "}
+                      <button
+                        onClick={() =>
+                          setFilesFor(filesFor === r.id ? null : r.id)
+                        }
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
+                        Files
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </motion.tbody>
+            </table>
+          </div>
+          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+          <AnimatePresence initial={false}>
+            {filesFor && (
+              <motion.div
+                key={filesFor}
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.28, ease: EASE_OUT }}
+                className="overflow-hidden"
+              >
+                <ReservationFiles
+                  reservation={reservations.find((r) => r.id === filesFor)!}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </Card>
+      </motion.div>
+    </motion.div>
   )
 }

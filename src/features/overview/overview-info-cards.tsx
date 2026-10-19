@@ -1,8 +1,14 @@
+import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
+import { rowItem, rowList } from "@/lib/motion"
 import type { Activity, AppNotification } from "@/types/domain"
 
 /** Recent system notifications feed. */
-export function NotificationsCard({ notifications }: { notifications: AppNotification[] }) {
+export function NotificationsCard({
+  notifications,
+}: {
+  notifications: AppNotification[]
+}) {
   return (
     <Card title="System Notifications">
       <div className="overflow-x-auto">
@@ -13,14 +19,14 @@ export function NotificationsCard({ notifications }: { notifications: AppNotific
               <th>Date &amp; Time</th>
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody variants={rowList} initial="hidden" animate="show">
             {notifications.map((n) => (
-              <tr key={n.id}>
+              <motion.tr key={n.id} variants={rowItem}>
                 <td>{n.message}</td>
                 <td>{n.dateTime}</td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
     </Card>
@@ -41,16 +47,16 @@ export function RecentActivityCard({ activities }: { activities: Activity[] }) {
               <th>Related Record</th>
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody variants={rowList} initial="hidden" animate="show">
             {activities.map((a) => (
-              <tr key={a.id}>
+              <motion.tr key={a.id} variants={rowItem}>
                 <td>{a.action}</td>
                 <td>{a.user}</td>
                 <td>{a.dateTime}</td>
                 <td>{a.record}</td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
     </Card>

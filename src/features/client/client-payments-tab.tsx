@@ -1,5 +1,7 @@
+import { motion } from "motion/react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useClientData } from "@/data/client-store"
+import { stagger } from "@/lib/motion"
 import { Card, ErrorNote, pesos, Spinner } from "./client-ui"
 
 /** Payment history tab. */
@@ -7,18 +9,26 @@ export function PaymentsTab() {
   const { status, payments, error } = useClientData()
 
   if (status === "loading" || status === "idle") return <Spinner />
-  if (status === "error") return <ErrorNote message={error ?? "Something went wrong."} />
+  if (status === "error")
+    return <ErrorNote message={error ?? "Something went wrong."} />
 
   if (payments.length === 0) {
     return (
-      <Card>
-        <p className="text-sm text-deep/70">No payments on record yet.</p>
-      </Card>
+      <motion.div variants={stagger()} initial="hidden" animate="show">
+        <Card>
+          <p className="text-sm text-deep/70">No payments on record yet.</p>
+        </Card>
+      </motion.div>
     )
   }
 
   return (
-    <div className="space-y-3">
+    <motion.div
+      variants={stagger(0.05, 0.02)}
+      initial="hidden"
+      animate="show"
+      className="space-y-3"
+    >
       {payments.map((p, i) => (
         <Card key={`${p.receipt_number}-${i}`}>
           <div className="flex items-center justify-between gap-2">
@@ -34,6 +44,6 @@ export function PaymentsTab() {
           </p>
         </Card>
       ))}
-    </div>
+    </motion.div>
   )
 }

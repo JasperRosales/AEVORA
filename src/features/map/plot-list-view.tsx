@@ -1,7 +1,9 @@
+import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { formatCurrency } from "@/lib/format"
+import { rowItem, rowList } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
 import type { Plot } from "@/types/domain"
 
@@ -24,9 +26,18 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
               <th />
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody
+            key={page}
+            variants={rowList}
+            initial="hidden"
+            animate="show"
+          >
             {plots.slice((page - 1) * 12, page * 12).map((p) => (
-              <tr key={p.id} className="border-t border-deep/10">
+              <motion.tr
+                key={p.id}
+                variants={rowItem}
+                className="border-t border-deep/10"
+              >
                 <td className="py-1.5">{p.plotNumber}</td>
                 <td>Section {p.section}</td>
                 <td>{p.type}</td>
@@ -34,14 +45,20 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
                   <StatusBadge status={p.status} />
                 </td>
                 <td>{formatCurrency(p.price)}</td>
-                <td>{p.status === "Available" ? "Available" : "Unavailable"}</td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>
+                  {p.status === "Available" ? "Available" : "Unavailable"}
                 </td>
-              </tr>
+                <td>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    Edit
+                  </button>{" "}
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    Delete
+                  </button>
+                </td>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
       <Pagination page={page} pageCount={pageCount} onChange={setPage} />

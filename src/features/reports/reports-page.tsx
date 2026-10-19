@@ -1,5 +1,6 @@
 import { CalendarCheck, CreditCard, FileSignature, Users } from "lucide-react"
 import { useState } from "react"
+import { motion } from "motion/react"
 import { usePagination } from "@/lib/use-pagination"
 import { Card } from "@/components/ui/card"
 import { DonutChart } from "@/components/ui/donut-chart"
@@ -8,12 +9,10 @@ import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
+import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import type { Payment } from "@/types/domain"
 
-function groupRevenue(
-  list: Payment[],
-  mode: "week" | "month" | "year",
-) {
+function groupRevenue(list: Payment[], mode: "week" | "month" | "year") {
   const map = new Map<string, number>()
   for (const p of list) {
     if (p.status !== "Paid") continue
@@ -46,7 +45,9 @@ function groupRevenue(
 /** Shown when a chart has no rows yet (e.g. before data loads). */
 function ChartEmpty() {
   return (
-    <p className="py-16 text-center text-xs text-deep/50">No data to display yet.</p>
+    <p className="py-16 text-center text-xs text-deep/50">
+      No data to display yet.
+    </p>
   )
 }
 
@@ -65,8 +66,13 @@ function BarChart({
   const n = data.length || 1
   const slot = (width - pad * 2) / n
   const bw = slot * 0.55
+  const signature = data.map((d) => `${d.label}:${d.value}`).join("|")
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+    <motion.svg
+      key={signature}
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full"
+    >
       {[0.25, 0.5, 0.75, 1].map((t) => (
         <line
           key={t}
@@ -84,17 +90,45 @@ function BarChart({
         const y = height - pad - h
         return (
           <g key={d.label}>
-            <rect x={x} y={y} width={bw} height={h} rx={4} fill={d.color} />
-            <text x={x + bw / 2} y={y - 6} textAnchor="middle" fontSize="10" fontWeight="600" fill="#061633">
+            <motion.rect
+              x={x}
+              width={bw}
+              rx={4}
+              fill={d.color}
+              initial={{ y: height - pad, height: 0 }}
+              animate={{ y, height: h }}
+              transition={{
+                duration: 0.55,
+                delay: 0.05 + i * 0.05,
+                ease: EASE_OUT,
+              }}
+            />
+            <motion.text
+              x={x + bw / 2}
+              y={y - 6}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="600"
+              fill="#061633"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.3 + i * 0.05 }}
+            >
               {formatValue ? formatValue(d.value) : d.value}
-            </text>
-            <text x={x + bw / 2} y={height - 10} textAnchor="middle" fontSize="10" fill="#4F7894">
+            </motion.text>
+            <text
+              x={x + bw / 2}
+              y={height - 10}
+              textAnchor="middle"
+              fontSize="10"
+              fill="#4F7894"
+            >
               {d.label}
             </text>
           </g>
         )
       })}
-    </svg>
+    </motion.svg>
   )
 }
 
@@ -111,7 +145,11 @@ function AreaChart({
   if (data.length === 0) return <ChartEmpty />
   const max = Math.max(...data.map((d) => d.amount), 1)
   const points = data.map((d, i) => ({
-    x: pad + (data.length === 1 ? (width - pad * 2) / 2 : (i / (data.length - 1)) * (width - pad * 2)),
+    x:
+      pad +
+      (data.length === 1
+        ? (width - pad * 2) / 2
+        : (i / (data.length - 1)) * (width - pad * 2)),
     y: height - pad - (d.amount / max) * (height - pad * 2),
     ...d,
   }))
@@ -119,8 +157,13 @@ function AreaChart({
     .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
     .join(" ")
   const area = `${line} L${points[points.length - 1].x},${height - pad} L${points[0].x},${height - pad} Z`
+  const signature = points.map((p) => `${p.label}:${p.amount}`).join("|")
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+    <motion.svg
+      key={signature}
+      viewBox={`0 0 ${width} ${height}`}
+      className="w-full"
+    >
       <defs>
         <linearGradient id="areaMonthly" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#4F7894" stopOpacity="0.35" />
@@ -138,54 +181,93 @@ function AreaChart({
           strokeOpacity="0.08"
         />
       ))}
-      <path d={area} fill="url(#areaMonthly)" />
-      <path
+      <motion.path
+        d={area}
+        fill="url(#areaMonthly)"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.6, delay: 0.2, ease: EASE_OUT }}
+      />
+      <motion.path
         d={line}
         fill="none"
         stroke="#4F7894"
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        initial={{ pathLength: 0, opacity: 0 }}
+        animate={{ pathLength: 1, opacity: 1 }}
+        transition={{ duration: 0.9, ease: EASE_OUT }}
       />
-      {points.map((p) => (
+      {points.map((p, i) => (
         <g key={p.label}>
-          <circle cx={p.x} cy={p.y} r="3.5" fill="#061633" />
-          <text
+          <motion.circle
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="#061633"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.45 + i * 0.05 }}
+          />
+          <motion.text
             x={p.x}
             y={p.y - 8}
             textAnchor="middle"
             fontSize="10"
             fontWeight="600"
             fill="#061633"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: 0.5 + i * 0.05 }}
           >
             {formatValue ? formatValue(p.amount) : p.amount}
-          </text>
-          <text x={p.x} y={height - 10} textAnchor="middle" fontSize="10" fill="#4F7894">
+          </motion.text>
+          <text
+            x={p.x}
+            y={height - 10}
+            textAnchor="middle"
+            fontSize="10"
+            fill="#4F7894"
+          >
             {p.label}
           </text>
         </g>
       ))}
-    </svg>
+    </motion.svg>
   )
 }
 
 export function ReportsPage() {
-  const { agreements, cemeteries, clients, generatedReports, payments, plots, reservations } = useData()
-  const { page, pageCount, current: reportRows, setPage } = usePagination(
+  const {
+    agreements,
+    cemeteries,
+    clients,
     generatedReports,
-    8,
-  )
+    payments,
+    plots,
+    reservations,
+  } = useData()
+  const {
+    page,
+    pageCount,
+    current: reportRows,
+    setPage,
+  } = usePagination(generatedReports, 8)
 
   const [cemetery, setCemetery] = useState("All Cemeteries")
   const [month, setMonth] = useState("All Months")
   const [appliedCemetery, setAppliedCemetery] = useState("All Cemeteries")
   const [appliedMonth, setAppliedMonth] = useState("All Months")
 
-  const monthOptions = [...new Set(payments.map((p) => p.date.slice(0, 7)))].sort()
+  const monthOptions = [
+    ...new Set(payments.map((p) => p.date.slice(0, 7))),
+  ].sort()
   const filteredPayments = payments.filter(
     (p) =>
-      (appliedCemetery === "All Cemeteries" || p.cemeteryId === appliedCemetery) &&
-      (appliedMonth === "All Months" || p.date.startsWith(appliedMonth)),
+      (appliedCemetery === "All Cemeteries" ||
+        p.cemeteryId === appliedCemetery) &&
+      (appliedMonth === "All Months" || p.date.startsWith(appliedMonth))
   )
   const revenueByPeriod = {
     Weekly: groupRevenue(filteredPayments, "week"),
@@ -203,10 +285,13 @@ export function ReportsPage() {
     Available: filteredPlots.filter((p) => p.status === "Available").length,
     Reserved: filteredPlots.filter((p) => p.status === "Reserved").length,
     Occupied: filteredPlots.filter((p) => p.status === "Occupied").length,
-    Waiting: filteredPlots.filter((p) => p.status === "Waiting for Checking").length,
+    Waiting: filteredPlots.filter((p) => p.status === "Waiting for Checking")
+      .length,
   }
   const occupancyRate = Math.round(
-    ((plotCounts.Occupied + plotCounts.Reserved) / (filteredPlots.length || 1)) * 100,
+    ((plotCounts.Occupied + plotCounts.Reserved) /
+      (filteredPlots.length || 1)) *
+      100
   )
 
   const reservationStatus = (
@@ -217,77 +302,121 @@ export function ReportsPage() {
   }))
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <motion.div
+      variants={stagger(0.08, 0.03)}
+      initial="hidden"
+      animate="show"
+      className="space-y-4"
+    >
+      <motion.div
+        variants={stagger(0.06, 0.05)}
+        className="grid grid-cols-2 gap-3 md:grid-cols-4"
+      >
         {(
           [
-            { label: "Total Clients", value: clients.length, icon: Users, trend: { up: true, text: "5%" } },
-            { label: "Total Reservations", value: reservations.length, icon: CalendarCheck, trend: { up: false, text: "6%" } },
-            { label: "Total Payments", value: payments.length, icon: CreditCard, trend: { up: true, text: "2%" } },
-            { label: "Total Agreements", value: agreements.length, icon: FileSignature, trend: { up: false, text: "3%" } },
+            {
+              label: "Total Clients",
+              value: clients.length,
+              icon: Users,
+              trend: { up: true, text: "5%" },
+            },
+            {
+              label: "Total Reservations",
+              value: reservations.length,
+              icon: CalendarCheck,
+              trend: { up: false, text: "6%" },
+            },
+            {
+              label: "Total Payments",
+              value: payments.length,
+              icon: CreditCard,
+              trend: { up: true, text: "2%" },
+            },
+            {
+              label: "Total Agreements",
+              value: agreements.length,
+              icon: FileSignature,
+              trend: { up: false, text: "3%" },
+            },
           ] as const
         ).map(({ label, value, icon, trend }) => (
-          <KpiTile key={label} label={label} value={value} icon={icon} trend={trend} />
+          <KpiTile
+            key={label}
+            label={label}
+            value={value}
+            icon={icon}
+            trend={trend}
+          />
         ))}
-      </div>
+      </motion.div>
 
-      <Card title="Filters">
-        <div className="flex flex-wrap items-center gap-3">
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
-          >
-            <option value="All Months">All Months</option>
-            {monthOptions.map((m) => (
-              <option key={m} value={m}>
-                {new Date(`${m}-01`).toLocaleDateString("en-US", {
-                  month: "long",
-                  year: "numeric",
-                })}
-              </option>
-            ))}
-          </select>
-          <select
-            value={cemetery}
-            onChange={(e) => setCemetery(e.target.value)}
-            className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
-          >
-            <option value="All Cemeteries">All Cemeteries</option>
-            {cemeteries.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <button
-            onClick={() => {
-              setAppliedMonth(month)
-              setAppliedCemetery(cemetery)
-            }}
-            className="neu-button px-4 py-1.5 text-sm"
-          >
-            Generate
-          </button>
-          <button
-            onClick={() => {
-              setMonth("All Months")
-              setCemetery("All Cemeteries")
-              setAppliedMonth("All Months")
-              setAppliedCemetery("All Cemeteries")
-            }}
-            className="neu-button px-4 py-1.5 text-sm"
-          >
-            Clear Filters
-          </button>
-        </div>
-      </Card>
+      <motion.div variants={fadeUp}>
+        <Card title="Filters">
+          <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
+            >
+              <option value="All Months">All Months</option>
+              {monthOptions.map((m) => (
+                <option key={m} value={m}>
+                  {new Date(`${m}-01`).toLocaleDateString("en-US", {
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </option>
+              ))}
+            </select>
+            <select
+              value={cemetery}
+              onChange={(e) => setCemetery(e.target.value)}
+              className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
+            >
+              <option value="All Cemeteries">All Cemeteries</option>
+              {cemeteries.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                setAppliedMonth(month)
+                setAppliedCemetery(cemetery)
+              }}
+              className="neu-button px-4 py-1.5 text-sm"
+            >
+              Generate
+            </button>
+            <button
+              onClick={() => {
+                setMonth("All Months")
+                setCemetery("All Cemeteries")
+                setAppliedMonth("All Months")
+                setAppliedCemetery("All Cemeteries")
+              }}
+              className="neu-button px-4 py-1.5 text-sm"
+            >
+              Clear Filters
+            </button>
+          </div>
+        </Card>
+      </motion.div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <motion.div variants={fadeUp} className="grid gap-4 xl:grid-cols-2">
         {(
           [
-            { title: "Monthly Revenue", data: revenueByPeriod.Monthly, type: "area" },
-            { title: "Weekly Revenue", data: revenueByPeriod.Weekly, type: "bar" },
+            {
+              title: "Monthly Revenue",
+              data: revenueByPeriod.Monthly,
+              type: "area",
+            },
+            {
+              title: "Weekly Revenue",
+              data: revenueByPeriod.Weekly,
+              type: "bar",
+            },
           ] as const
         ).map(({ title, data, type }) => {
           const total = data.reduce((sum, d) => sum + d.amount, 0)
@@ -328,16 +457,28 @@ export function ReportsPage() {
             </Card>
           )
         })}
-      </div>
+      </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-2">
         <Card title="Plot Status Breakdown">
           <DonutChart
             centerLabel={`${occupancyRate}%`}
             segments={[
-              { label: "Available", value: plotCounts.Available, color: "#16a34a" },
-              { label: "Reserved", value: plotCounts.Reserved, color: "#2563eb" },
-              { label: "Occupied", value: plotCounts.Occupied, color: "#dc2626" },
+              {
+                label: "Available",
+                value: plotCounts.Available,
+                color: "#16a34a",
+              },
+              {
+                label: "Reserved",
+                value: plotCounts.Reserved,
+                color: "#2563eb",
+              },
+              {
+                label: "Occupied",
+                value: plotCounts.Occupied,
+                color: "#dc2626",
+              },
               { label: "Waiting", value: plotCounts.Waiting, color: "#eab308" },
             ]}
           />
@@ -352,44 +493,57 @@ export function ReportsPage() {
             }))}
           />
         </Card>
-      </div>
+      </motion.div>
 
-      <Card title="Recent Reports">
-        <div className="overflow-x-auto"><table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-deep uppercase">
-              <th>Report Name</th>
-              <th>Type</th>
-              <th>Date Generated</th>
-              <th>Generated By</th>
-              <th>Status</th>
-              <th />
-            </tr>
-          </thead>
-          <tbody>
-            {reportRows.map((r) => (
-              <tr key={r.id} className="border-t border-deep/10">
-                <td className="py-1.5">{r.name}</td>
-                <td>{r.type}</td>
-                <td>{r.dateGenerated}</td>
-                <td>{r.generatedBy}</td>
-                <td>
-                  <StatusBadge status={r.status} />
-                </td>
-                <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Edit</button>{" "}
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Delete</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table></div>
-        <Pagination
-          page={page}
-          pageCount={pageCount}
-          onChange={setPage}
-        />
-      </Card>
-    </div>
+      <motion.div variants={fadeUp}>
+        <Card title="Recent Reports">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-deep uppercase">
+                  <th>Report Name</th>
+                  <th>Type</th>
+                  <th>Date Generated</th>
+                  <th>Generated By</th>
+                  <th>Status</th>
+                  <th />
+                </tr>
+              </thead>
+              <motion.tbody
+                key={page}
+                variants={rowList}
+                initial="hidden"
+                animate="show"
+              >
+                {reportRows.map((r) => (
+                  <motion.tr
+                    key={r.id}
+                    variants={rowItem}
+                    className="border-t border-deep/10"
+                  >
+                    <td className="py-1.5">{r.name}</td>
+                    <td>{r.type}</td>
+                    <td>{r.dateGenerated}</td>
+                    <td>{r.generatedBy}</td>
+                    <td>
+                      <StatusBadge status={r.status} />
+                    </td>
+                    <td>
+                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                        Edit
+                      </button>{" "}
+                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                        Delete
+                      </button>
+                    </td>
+                  </motion.tr>
+                ))}
+              </motion.tbody>
+            </table>
+          </div>
+          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+        </Card>
+      </motion.div>
+    </motion.div>
   )
 }

@@ -1,7 +1,16 @@
-import { Download, FileText, MapPin, RefreshCw, Trash2, Upload } from "lucide-react"
+import {
+  Download,
+  FileText,
+  MapPin,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from "lucide-react"
 import { useRef, useState } from "react"
+import { AnimatePresence, motion } from "motion/react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { reloadClientData, useClientData } from "@/data/client-store"
+import { EASE_OUT, stagger } from "@/lib/motion"
 import { deleteAttachment, uploadAttachment } from "@/lib/neon-api"
 import { Card, ErrorNote, fileSize, Spinner } from "./client-ui"
 
@@ -11,20 +20,28 @@ export function ReservationsTab() {
   const [openId, setOpenId] = useState<string | null>(null)
 
   if (status === "loading" || status === "idle") return <Spinner />
-  if (status === "error") return <ErrorNote message={error ?? "Something went wrong."} />
+  if (status === "error")
+    return <ErrorNote message={error ?? "Something went wrong."} />
 
   if (reservations.length === 0) {
     return (
-      <Card>
-        <p className="text-sm text-deep/70">
-          You have no reservations on record yet.
-        </p>
-      </Card>
+      <motion.div variants={stagger()} initial="hidden" animate="show">
+        <Card>
+          <p className="text-sm text-deep/70">
+            You have no reservations on record yet.
+          </p>
+        </Card>
+      </motion.div>
     )
   }
 
   return (
-    <div className="space-y-3">
+    <motion.div
+      variants={stagger(0.05, 0.02)}
+      initial="hidden"
+      animate="show"
+      className="space-y-3"
+    >
       {reservations.map((r) => (
         <Card key={r.id}>
           <button
@@ -44,16 +61,30 @@ export function ReservationsTab() {
             </p>
             <p className="mt-0.5 text-xs text-deep/60">Scheduled {r.date}</p>
           </button>
-          {openId === r.id && <ReservationFiles reservationId={r.id} files={r.files} />}
+          <AnimatePresence initial={false}>
+            {openId === r.id && (
+              <motion.div
+                key="files"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.26, ease: EASE_OUT }}
+                className="overflow-hidden"
+              >
+                <ReservationFiles reservationId={r.id} files={r.files} />
+              </motion.div>
+            )}
+          </AnimatePresence>
         </Card>
       ))}
-      <button
+      <motion.button
         onClick={() => reloadClientData()}
+        whileTap={{ scale: 0.98 }}
         className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2 text-xs text-deep/60"
       >
         <RefreshCw size={13} /> Refresh
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   )
 }
 
@@ -63,7 +94,13 @@ function ReservationFiles({
   files,
 }: {
   reservationId: string
-  files: { id: string; filename: string; size: number; created_at: string; url: string }[]
+  files: {
+    id: string
+    filename: string
+    size: number
+    created_at: string
+    url: string
+  }[]
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -109,16 +146,25 @@ function ReservationFiles({
         <p className="mb-2 text-xs text-deep/50">No documents uploaded yet.</p>
       )}
 
-      <ul className="mb-3 space-y-2">
+      <motion.ul
+        variants={stagger(0.04)}
+        initial="hidden"
+        animate="show"
+        className="mb-3 space-y-2"
+      >
         {files.map((f) => (
-          <li
+          <motion.li
             key={f.id}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, ease: EASE_OUT }}
             className="flex items-center gap-2 rounded-lg bg-cream px-3 py-2"
           >
             <div className="min-w-0 flex-1">
               <p className="truncate text-xs font-medium">{f.filename}</p>
               <p className="text-[11px] text-deep/50">
-                {fileSize(f.size)} · {new Date(f.created_at).toLocaleDateString()}
+                {fileSize(f.size)} ·{" "}
+                {new Date(f.created_at).toLocaleDateString()}
               </p>
             </div>
             {/* Presigned URL, fresh from the list fetch (expires in 1 hour). */}
@@ -140,11 +186,23 @@ function ReservationFiles({
             >
               <Trash2 size={15} />
             </button>
-          </li>
+          </motion.li>
         ))}
-      </ul>
+      </motion.ul>
 
-      {note && <p className="mb-2 text-xs text-deep/70">{note}</p>}
+      <AnimatePresence initial={false}>
+        {note && (
+          <motion.p
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: EASE_OUT }}
+            className="mb-2 overflow-hidden text-xs text-deep/70"
+          >
+            {note}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <input
         ref={fileInput}
@@ -155,13 +213,14 @@ function ReservationFiles({
           if (file) void onUpload(file)
         }}
       />
-      <button
+      <motion.button
         onClick={() => fileInput.current?.click()}
         disabled={busy}
+        whileTap={{ scale: 0.98 }}
         className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-deep/40 py-2.5 text-xs font-medium text-deep/70 transition active:bg-cream"
       >
         <Upload size={14} /> {busy ? "Working..." : "Upload a document"}
-      </button>
+      </motion.button>
     </div>
   )
 }

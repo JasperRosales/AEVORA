@@ -1,10 +1,16 @@
+import { motion } from "motion/react"
 import { cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { rowItem, rowList } from "@/lib/motion"
 import type { Reservation } from "@/types/domain"
 
 /** Latest five reservations in a compact table. */
-export function RecentReservationsCard({ reservations }: { reservations: Reservation[] }) {
+export function RecentReservationsCard({
+  reservations,
+}: {
+  reservations: Reservation[]
+}) {
   return (
     <Card title="Recent Reservations">
       <div className="overflow-x-auto">
@@ -20,9 +26,13 @@ export function RecentReservationsCard({ reservations }: { reservations: Reserva
               <th />
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody variants={rowList} initial="hidden" animate="show">
             {reservations.slice(0, 5).map((r) => (
-              <tr key={r.id} className="border-t border-deep/10">
+              <motion.tr
+                key={r.id}
+                variants={rowItem}
+                className="border-t border-deep/10"
+              >
                 <td className="py-1.5">{r.reservationNumber}</td>
                 <td>{r.clientName}</td>
                 <td>{cemeteryName(r.cemeteryId)}</td>
@@ -32,11 +42,13 @@ export function RecentReservationsCard({ reservations }: { reservations: Reserva
                   <StatusBadge status={r.status} />
                 </td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">View</button>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    View
+                  </button>
                 </td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
     </Card>
@@ -44,8 +56,14 @@ export function RecentReservationsCard({ reservations }: { reservations: Reserva
 }
 
 /** Reservations still awaiting verification. */
-export function PendingChecksCard({ reservations }: { reservations: Reservation[] }) {
-  const pendingChecks = reservations.filter((r) => r.verification !== "Verified")
+export function PendingChecksCard({
+  reservations,
+}: {
+  reservations: Reservation[]
+}) {
+  const pendingChecks = reservations.filter(
+    (r) => r.verification !== "Verified"
+  )
 
   return (
     <Card title="Information Checking">
@@ -60,9 +78,13 @@ export function PendingChecksCard({ reservations }: { reservations: Reservation[
               <th />
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody variants={rowList} initial="hidden" animate="show">
             {pendingChecks.map((r) => (
-              <tr key={r.id} className="border-t border-deep/10">
+              <motion.tr
+                key={r.id}
+                variants={rowItem}
+                className="border-t border-deep/10"
+              >
                 <td className="py-1.5">{r.clientName}</td>
                 <td>{r.reservationNumber}</td>
                 <td>{r.date}</td>
@@ -70,11 +92,13 @@ export function PendingChecksCard({ reservations }: { reservations: Reservation[
                   <StatusBadge status={r.verification} />
                 </td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">Review</button>
+                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                    Review
+                  </button>
                 </td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
       </div>
     </Card>

@@ -1,5 +1,7 @@
+import { motion } from "motion/react"
 import { signOut, useSession } from "@/data/session"
 import { useClientData } from "@/data/client-store"
+import { stagger, staggerItem } from "@/lib/motion"
 import { Card } from "./client-ui"
 
 /** Profile tab: account identity, linked cemetery record, sign out. */
@@ -16,12 +18,22 @@ export function ProfileTab() {
     .toUpperCase()
 
   return (
-    <div className="space-y-4">
+    <motion.div
+      variants={stagger(0.06, 0.02)}
+      initial="hidden"
+      animate="show"
+      className="space-y-4"
+    >
       <Card>
         <div className="flex items-center gap-3">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-navy text-lg font-bold text-cream">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="flex h-14 w-14 items-center justify-center rounded-full bg-navy text-lg font-bold text-cream"
+          >
             {initials}
-          </div>
+          </motion.div>
           <div className="min-w-0">
             <p className="truncate font-bold">{user?.name}</p>
             <p className="truncate text-xs text-deep/60">{user?.email}</p>
@@ -44,17 +56,23 @@ export function ProfileTab() {
         </Card>
       )}
 
-      <button
+      <motion.button
+        variants={staggerItem}
         onClick={() => void signOut()}
+        whileHover={{ y: -1 }}
+        whileTap={{ scale: 0.98 }}
         className="w-full rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-semibold text-red-700 transition active:bg-red-100"
       >
         Sign Out
-      </button>
+      </motion.button>
 
-      <p className="pb-2 text-center text-[11px] text-deep/40">
+      <motion.p
+        variants={staggerItem}
+        className="pb-2 text-center text-[11px] text-deep/40"
+      >
         Aevora Cemetery Management System
-      </p>
-    </div>
+      </motion.p>
+    </motion.div>
   )
 }
 
