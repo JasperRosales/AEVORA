@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Real env files never enter git — only the key-less sample
+.env
+.env.*
+!.env.sample
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
