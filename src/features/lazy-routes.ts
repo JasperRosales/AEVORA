@@ -11,8 +11,20 @@ import type { Page } from "@/components/layout/sidebar"
  * without a chunk is a type error.
  */
 
+/**
+ * Props the app shell may hand to a dashboard screen. They are optional so a
+ * screen can ignore them: only ones with in-page shortcuts (the Overview
+ * quick actions) use them.
+ */
+export interface DashboardProps {
+  /** Sidebar-style navigation, so shortcuts inside a screen can switch page. */
+  onNavigate?: (page: Page) => void
+  /** Warms a screen's chunk before it is clicked (hover/keyboard focus). */
+  onPrefetch?: (page: Page) => void
+}
+
 /** A screen's dynamic import, resolving to its default export. */
-type Loader = () => Promise<{ default: ComponentType }>
+type Loader = () => Promise<{ default: ComponentType<DashboardProps> }>
 
 const loaders: Record<Page, Loader> = {
   Overview: async () => ({
@@ -21,9 +33,12 @@ const loaders: Record<Page, Loader> = {
   "Cemetery Map": async () => ({
     default: (await import("@/features/map/cemetery-map-page")).CemeteryMapPage,
   }),
-  Plots: async () => ({ default: (await import("@/features/plots/plots-page")).PlotsPage }),
+  Plots: async () => ({
+    default: (await import("@/features/plots/plots-page")).PlotsPage,
+  }),
   Reservations: async () => ({
-    default: (await import("@/features/reservations/reservations-page")).ReservationsPage,
+    default: (await import("@/features/reservations/reservations-page"))
+      .ReservationsPage,
   }),
   Clients: async () => ({
     default: (await import("@/features/clients/clients-page")).ClientsPage,
@@ -32,7 +47,8 @@ const loaders: Record<Page, Loader> = {
     default: (await import("@/features/payments/payments-page")).PaymentsPage,
   }),
   Agreements: async () => ({
-    default: (await import("@/features/agreements/agreements-page")).AgreementsPage,
+    default: (await import("@/features/agreements/agreements-page"))
+      .AgreementsPage,
   }),
   Reports: async () => ({
     default: (await import("@/features/reports/reports-page")).ReportsPage,
@@ -40,9 +56,12 @@ const loaders: Record<Page, Loader> = {
 }
 
 /** Dashboard screens, switched by the sidebar and rendered in the page area. */
-export const PAGES: Record<Page, LazyExoticComponent<ComponentType>> = Object.fromEntries(
-  Object.entries(loaders).map(([page, load]) => [page, lazy(load)]),
-) as Record<Page, LazyExoticComponent<ComponentType>>
+export const PAGES: Record<
+  Page,
+  LazyExoticComponent<ComponentType<DashboardProps>>
+> = Object.fromEntries(
+  Object.entries(loaders).map(([page, load]) => [page, lazy(load)])
+) as Record<Page, LazyExoticComponent<ComponentType<DashboardProps>>>
 
 /**
  * Fire-and-forget chunk warm-up, e.g. when the user hovers a sidebar entry.
@@ -59,5 +78,6 @@ export const ClientApp = lazy(async () => ({
 }))
 
 export const StaffAccountsPage = lazy(async () => ({
-  default: (await import("@/features/staff/staff-accounts-page")).StaffAccountsPage,
+  default: (await import("@/features/staff/staff-accounts-page"))
+    .StaffAccountsPage,
 }))

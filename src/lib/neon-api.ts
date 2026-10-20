@@ -59,17 +59,29 @@ export function fetchAll(): Promise<{
     apiGet<Activity[]>("/activities"),
     apiGet<AppNotification[]>("/notifications"),
     apiGet<GeneratedReport[]>("/reports"),
-  ]).then(([cemeteries, plots, reservations, clients, payments, agreements, activities, notifications, reports]) => ({
-    cemeteries,
-    plots,
-    reservations,
-    clients,
-    payments,
-    agreements,
-    activities,
-    notifications,
-    reports,
-  }))
+  ]).then(
+    ([
+      cemeteries,
+      plots,
+      reservations,
+      clients,
+      payments,
+      agreements,
+      activities,
+      notifications,
+      reports,
+    ]) => ({
+      cemeteries,
+      plots,
+      reservations,
+      clients,
+      payments,
+      agreements,
+      activities,
+      notifications,
+      reports,
+    })
+  )
 }
 
 export function fetchAttachments(reservationId: string): Promise<Attachment[]> {
@@ -79,7 +91,7 @@ export function fetchAttachments(reservationId: string): Promise<Attachment[]> {
 /** Uploads a file to the `assets` bucket via the API function. */
 export async function uploadAttachment(
   reservationId: string,
-  file: File,
+  file: File
 ): Promise<Attachment> {
   const form = new FormData()
   form.append("file", file)
@@ -106,7 +118,7 @@ export interface StaffUser {
 async function apiSend<T>(
   method: "POST" | "DELETE",
   path: string,
-  body?: unknown,
+  body?: unknown
 ): Promise<T> {
   const token = (await getAuthToken()) ?? KEY
   const res = await fetch(`${BASE}${path}`, {
@@ -119,7 +131,9 @@ async function apiSend<T>(
   })
   const payload = await res.json().catch(() => ({}))
   if (!res.ok) {
-    const message = (payload as { error?: string }).error ?? `${method} ${path} → ${res.status}`
+    const message =
+      (payload as { error?: string }).error ??
+      `${method} ${path} → ${res.status}`
     throw new Error(message)
   }
   return payload as T
@@ -144,4 +158,68 @@ export function deleteStaff(id: string): Promise<{ ok: boolean }> {
 
 export function deleteAttachment(id: string): Promise<{ ok: boolean }> {
   return apiSend<{ ok: boolean }>("DELETE", `/attachments/${id}`)
+}
+
+/* --------------------- creates (dashboard quick actions) ------------------- */
+
+export interface NewClient {
+  fullName: string
+  contactNumber: string
+  email: string
+  type: Client["type"]
+  status: Client["status"]
+}
+
+export interface NewPlot {
+  cemeteryId: string
+  section: string
+  row: number
+  column: number
+  type: Plot["type"]
+  size: string
+  price: number
+  status: Plot["status"]
+}
+
+export interface NewReservation {
+  clientId: string
+  plotId: string
+  date: string
+  burialType: Reservation["burialType"]
+}
+
+export interface NewPayment {
+  clientId: string
+  plotId: string
+  type: Payment["type"]
+  amount: number
+  method: Payment["method"]
+  status: Payment["status"]
+  date: string
+}
+
+export function createClient(input: NewClient): Promise<Client> {
+  return apiSend<Client>("POST", "/clients", input)
+}
+
+export function createPlot(input: NewPlot): Promise<Plot> {
+  return apiSend<Plot>("POST", "/plots", input)
+}
+
+/** Booking the plot server-side; returns the row plus the records it touched. */
+export function createReservation(
+  input: NewReservation
+): Promise<{ reservation: Reservation; plot: Plot; client: Client }> {
+  return apiSend("POST", "/reservations", input)
+}
+
+export function createPayment(input: NewPayment): Promise<Payment> {
+  return apiSend<Payment>("POST", "/payments", input)
+}
+
+export function createReport(input: {
+  name?: string
+  type: string
+}): Promise<GeneratedReport> {
+  return apiSend<GeneratedReport>("POST", "/reports", input)
 }

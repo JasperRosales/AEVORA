@@ -3,6 +3,7 @@ import { motion } from "motion/react"
 import { CemeterySelector, cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
 import { useData } from "@/data/store"
+import type { DashboardProps } from "@/features/lazy-routes"
 import { fadeUp, stagger } from "@/lib/motion"
 import { NotificationsCard, RecentActivityCard } from "./overview-info-cards"
 import { OverviewKpis } from "./overview-kpis"
@@ -19,9 +20,10 @@ import {
 
 /**
  * Staff dashboard landing page. Owns the cemetery filter and composes the
- * section cards, each living in its own overview-* module.
+ * section cards, each living in its own overview-* module. The quick-action
+ * cards receive the shell's navigation so their tiles can switch screens.
  */
-export function OverviewPage() {
+export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
   const {
     activities,
     agreements,
@@ -78,7 +80,7 @@ export function OverviewPage() {
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">
         <OccupancyCard plots={filteredPlots} />
-        <QuickActionsCard />
+        <QuickActionsCard onNavigate={onNavigate} onPrefetch={onPrefetch} />
       </motion.div>
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">
@@ -94,7 +96,7 @@ export function OverviewPage() {
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">
         <RecentActivityCard activities={activities} />
-        <ReportsCard />
+        <ReportsCard onNavigate={onNavigate} />
       </motion.div>
     </motion.div>
   )

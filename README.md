@@ -12,6 +12,10 @@ The backend is a Hono API deployed as a **Neon Function** next to a Lakebase
 Postgres branch, with Neon Auth for sign-in and Neon Object Storage for
 reservation documents.
 
+Dashboard quick actions have full functionality: Add Client, Add Plot, Create
+Reservation, Record Payment, and Generate Report POST to the API function, and
+the view actions navigate straight to the matching screen.
+
 ## Getting started
 
 ### 1. Install
@@ -61,7 +65,7 @@ Full documentation lives in [`docs/`](docs/README.md).
 
 - [Login](docs/pages/login.md) — sign-in screen and role-based routing
 - [Overview](docs/pages/overview.md) — dashboard home: KPIs, occupancy,
-  quick actions, summaries, and feeds
+  working quick actions, summaries, and feeds
 - [Cemetery Map](docs/pages/cemetery-map.md) — interactive SVG plot map with
   filters, zoom, and a details panel
 - [Plots](docs/pages/plots.md) — searchable, paginated plot register

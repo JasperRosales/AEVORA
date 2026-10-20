@@ -33,6 +33,10 @@ The table paginates 12 rows per page (`usePagination`, `Pagination` component).
 
 - The Edit/Delete buttons are presentational in the current build (records are
   seeded/managed in the database; see `api/db/seed.ts`).
+- New plots are added from the **Add Plot** quick action on the
+  [Overview](overview.md) page (`POST /plots`). The plot id and number are
+  derived from cemetery + section + row + column (e.g. `A-101`), and duplicates
+  are rejected with a 409.
 - Plot status colors are shared with the map and badges via
   `src/lib/status.ts`, so the same status always looks the same across the app.
 

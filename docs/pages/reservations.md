@@ -48,3 +48,10 @@ The same files are visible to the owning family in the
 
 Reservations and attachments come from the shared staff store; attachment
 list/upload go through `src/lib/neon-api.ts` → API function → Object Storage.
+
+New reservations are created with the **Create Reservation** quick action on
+the [Overview](overview.md) page (`POST /reservations`): picking an available
+plot books it (status → `Reserved`, `reservedFor` set), increments the client's
+reservation count, and creates the reservation as `Pending` /
+`Waiting for Checking`. **Review Information Checking** on the Overview also
+lands here.

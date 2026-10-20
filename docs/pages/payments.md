@@ -39,3 +39,7 @@ Edit/Delete row actions. Paginated at 8 rows per page.
 Payments come from the shared staff store (`/payments`, staff-guarded). The
 same records feed the client portal's Payments tab (scoped to the family) and
 the revenue charts on [Reports](reports.md).
+
+New transactions are logged with the **Record Payment** quick action on the
+[Overview](overview.md) page (`POST /payments`); the server assigns the next
+`OR-##` receipt number and copies the cemetery from the selected plot.

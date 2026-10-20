@@ -36,6 +36,12 @@ export default function App() {
     if (status === "signedin" && !isClient) ensureDataLoaded()
   }, [status, isClient])
 
+  // A fresh screen starts at the top — quick actions and the sidebar both
+  // jump between pages from anywhere in a scrolled view.
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [page])
+
   // One key per top-level screen so AnimatePresence can cross-fade between
   // the login wall, the client portal and the staff dashboard.
   const screen =
@@ -103,7 +109,7 @@ export default function App() {
                   animate="show"
                   exit="exit"
                 >
-                  <CurrentPage />
+                  <CurrentPage onNavigate={setPage} onPrefetch={warmPage} />
                 </motion.div>
               </AnimatePresence>
             </Suspense>

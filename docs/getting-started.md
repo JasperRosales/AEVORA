@@ -93,7 +93,20 @@ Key behaviours:
 
 - **Role routing** (`src/App.tsx`): `client` role → mobile portal; everyone else → staff dashboard. The staff dashboard's "all records" fetch only runs for staff/admin.
 - **Server-side scoping**: the client portal endpoints (`api/routes/client-routes.ts`) match the caller's auth email to their `clients` row — the UI never decides what a client may see.
-- **Route code splitting** (`src/features/lazy-routes.ts`): each sidebar page is a separate lazy chunk, warmed on sidebar hover/focus.
+- **Route code splitting** (`src/features/lazy-routes.ts`): each sidebar page is a separate lazy chunk, warmed on sidebar hover/focus. The shell passes `onNavigate`/`onPrefetch` down to each screen (`DashboardProps`) so in-page shortcuts — like the Overview quick actions — can switch pages and warm the target chunk.
 - **Auth**: every API call carries a short-lived Neon Auth JWT (15 min, cached in `src/lib/auth.ts`) or the ops `API_KEY`.
+- **Writes**: staff create records through `staffGuard`-protected POST routes in `api/routes/staff-data-routes.ts` (`/clients`, `/plots`, `/reservations`, `/payments`, `/reports`), reachable from the Overview quick actions.
 
 Continue to the [Table of Contents](README.md) to read the per-page guides.
+
+## Deploying backend changes
+
+The API function is deployed separately from the SPA. After changing anything
+under `api/`, apply it to the branch with the Neon CLI:
+
+```bash
+neon deploy --project-id <project-id>   # or: neon deploy (from a linked dir)
+```
+
+The SPA can be built/deployed independently (`npm run build`); the quick-action
+forms call the same `VITE_NEON_API_URL` the rest of the dashboard uses.

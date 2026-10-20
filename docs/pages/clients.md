@@ -38,5 +38,9 @@ system:
 ## Notes
 
 - Edit/Delete buttons are presentational in the current build.
+- New clients are added from the **Add Client** quick action on the
+  [Overview](overview.md) page (`POST /clients`); the server assigns the next
+  `CL-###` id and today's registration date, and the row appears here without a
+  reload.
 - No personal data beyond what the table shows is exposed to the portal; the
   portal profile tab re-reads these fields server-side.
