@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto"
-import { desc, eq } from "drizzle-orm"
+import { and, desc, eq } from "drizzle-orm"
 import { Hono } from "hono"
-import { staffGuard, type AppEnv } from "../lib/auth"
-import { db } from "../lib/db"
+import { provisionClientAccount, staffGuard, type AppEnv } from "../lib/auth"
+import { db, pool } from "../lib/db"
 import * as schema from "../db/schema"
 
 /**
@@ -31,6 +31,30 @@ const PAYMENT_TYPES = [
 ] as const
 const PAYMENT_STATUSES = ["Paid", "Pending", "Overdue"] as const
 const PAYMENT_METHODS = ["Cash", "Bank Transfer", "Card", "Online"] as const
+const RESERVATION_STATUSES = [
+  "Pending",
+  "Under Verification",
+  "Confirmed",
+  "Cancelled",
+] as const
+const VERIFICATION_STATUSES = [
+  "Waiting for Checking",
+  "Under Review",
+  "Verified",
+  "Requires Action",
+] as const
+const AGREEMENT_TYPES = [
+  "Reservation Agreement",
+  "Deed of Sale",
+  "Maintenance Agreement",
+] as const
+const AGREEMENT_STATUSES = [
+  "Pending",
+  "Active",
+  "Completed",
+  "Cancelled",
+] as const
+const REPORT_STATUSES = ["Ready", "Processing"] as const
 
 routes.get("/cemeteries", staffGuard, async (c) =>
   c.json(await db.select().from(schema.cemeteries))
@@ -116,7 +140,26 @@ routes.post("/clients", staffGuard, async (c) => {
     })
     .returning()
 
-  return c.json(row, 201)
+  // The client record is also the source of truth for portal access: adding a
+  // client provisions their Neon Auth account (role "client") in the same
+  // step, so the family can sign in at /client/login without an admin
+  // touching the accounts page. A failure here doesn't roll back the client
+  // row — it's reported so staff can retry.
+  const portal = await provisionClientAccount(
+    fullName,
+    email,
+    c.req.header("origin")
+  )
+
+  return c.json(
+    {
+      ...row,
+      portal: portal.ok
+        ? { email, tempPassword: portal.tempPassword }
+        : { email, error: portal.error },
+    },
+    201
+  )
 })
 
 routes.post("/plots", staffGuard, async (c) => {
@@ -331,6 +374,339 @@ routes.post("/reports", staffGuard, async (c) => {
     .returning()
 
   return c.json(inserted, 201)
+})
+
+/* ------------------------------ edits (PATCH) ------------------------------ */
+
+routes.patch("/clients/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.clients)
+    .where(eq(schema.clients.id, id))
+  if (!existing) return c.json({ error: "Unknown client" }, 404)
+
+  const fullName = str(body.fullName) || existing.fullName
+  const contactNumber = str(body.contactNumber) || existing.contactNumber
+  const email = str(body.email) || existing.email
+  if (!fullName || !contactNumber || !email) {
+    return c.json(
+      { error: "Full name, contact number and email are required" },
+      400
+    )
+  }
+
+  const [updated] = await db
+    .update(schema.clients)
+    .set({
+      fullName,
+      contactNumber,
+      email,
+      type: oneOf(body.type, CLIENT_TYPES, existing.type),
+      status: oneOf(body.status, CLIENT_STATUSES, existing.status),
+    })
+    .where(eq(schema.clients.id, id))
+    .returning()
+
+  // The portal login is keyed on email (auth email → clients row); a rename
+  // of the address has to follow through or the family loses portal access.
+  if (email.toLowerCase() !== existing.email.toLowerCase()) {
+    await pool.query(
+      'update neon_auth."user" set email = $1 where lower(email) = lower($2)',
+      [email, existing.email]
+    )
+  }
+  return c.json(updated)
+})
+
+routes.delete("/clients/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.clients)
+    .where(eq(schema.clients.id, id))
+  if (!existing) return c.json({ error: "Unknown client" }, 404)
+
+  // Reservations reference the client by name; deleting the client first
+  // would leave them orphaned, so the records must go the other way round.
+  const held = await db
+    .select({ id: schema.reservations.id })
+    .from(schema.reservations)
+    .where(eq(schema.reservations.clientName, existing.fullName))
+  if (held.length > 0) {
+    return c.json(
+      {
+        error: `Client has ${held.length} reservation(s) — delete them first`,
+      },
+      409
+    )
+  }
+
+  await db.delete(schema.clients).where(eq(schema.clients.id, id))
+
+  // Portal access goes with the record: drop the linked Neon Auth user (and
+  // their sessions) so the family can no longer sign in at /client/login.
+  const { rows: users } = await pool.query(
+    'select id from neon_auth."user" where lower(email) = lower($1)',
+    [existing.email]
+  )
+  if (users[0]) {
+    await pool.query('delete from neon_auth."session" where "userId" = $1', [
+      users[0].id,
+    ])
+    await pool.query('delete from neon_auth."account" where "userId" = $1', [
+      users[0].id,
+    ])
+    await pool.query('delete from neon_auth."user" where id = $1', [users[0].id])
+  }
+
+  return c.json({ ok: true })
+})
+
+routes.patch("/plots/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.plots)
+    .where(eq(schema.plots.id, id))
+  if (!existing) return c.json({ error: "Unknown plot" }, 404)
+
+  const size = str(body.size) || existing.size
+  let price = existing.price
+  if (body.price !== undefined) {
+    price = Number(body.price)
+    if (!Number.isFinite(price) || price < 0) {
+      return c.json({ error: "Price must be a positive amount" }, 400)
+    }
+    price = Math.round(price)
+  }
+
+  // Location (cemetery/section/row/column) stays fixed: the plot id and number
+  // are derived from it, so editing them would orphan existing reservations.
+  const [updated] = await db
+    .update(schema.plots)
+    .set({
+      type: oneOf(body.type, BURIAL_TYPES, existing.type),
+      size,
+      price,
+      status: oneOf(body.status, PLOT_STATUSES, existing.status),
+      reservedFor:
+        body.reservedFor === undefined
+          ? existing.reservedFor
+          : str(body.reservedFor) || null,
+    })
+    .where(eq(schema.plots.id, id))
+    .returning()
+  return c.json(toPlot(updated))
+})
+
+routes.delete("/plots/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.plots)
+    .where(eq(schema.plots.id, id))
+  if (!existing) return c.json({ error: "Unknown plot" }, 404)
+  if (existing.status === "Reserved" || existing.status === "Occupied") {
+    return c.json(
+      { error: `Plot is ${existing.status.toLowerCase()} — free it first` },
+      409
+    )
+  }
+
+  await db.delete(schema.plots).where(eq(schema.plots.id, id))
+  return c.json({ ok: true })
+})
+
+routes.patch("/reservations/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.reservations)
+    .where(eq(schema.reservations.id, id))
+  if (!existing) return c.json({ error: "Unknown reservation" }, 404)
+
+  const [updated] = await db
+    .update(schema.reservations)
+    .set({
+      date: isDate(str(body.date)) ? str(body.date) : existing.date,
+      burialType: oneOf(body.burialType, BURIAL_TYPES, existing.burialType),
+      status: oneOf(body.status, RESERVATION_STATUSES, existing.status),
+      verification: oneOf(
+        body.verification,
+        VERIFICATION_STATUSES,
+        existing.verification
+      ),
+    })
+    .where(eq(schema.reservations.id, id))
+    .returning()
+  return c.json(toReservation(updated))
+})
+
+routes.delete("/reservations/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.reservations)
+    .where(eq(schema.reservations.id, id))
+  if (!existing) return c.json({ error: "Unknown reservation" }, 404)
+
+  await db.delete(schema.reservations).where(eq(schema.reservations.id, id))
+
+  // Releasing the booking mirrors what creating it did in reverse: the plot
+  // goes back on the market and the client's reservation count follows.
+  let plot = null
+  const [booked] = await db
+    .select()
+    .from(schema.plots)
+    .where(
+      and(
+        eq(schema.plots.cemeteryId, existing.cemeteryId),
+        eq(schema.plots.plotNumber, existing.plotNumber)
+      )
+    )
+  if (booked && booked.reservedFor === existing.clientName) {
+    ;[plot] = await db
+      .update(schema.plots)
+      .set({ status: "Available", reservedFor: null })
+      .where(eq(schema.plots.id, booked.id))
+      .returning()
+  }
+  let client = null
+  const [owner] = await db
+    .select()
+    .from(schema.clients)
+    .where(eq(schema.clients.fullName, existing.clientName))
+  if (owner && owner.reservations > 0) {
+    ;[client] = await db
+      .update(schema.clients)
+      .set({ reservations: owner.reservations - 1 })
+      .where(eq(schema.clients.id, owner.id))
+      .returning()
+  }
+
+  return c.json({
+    ok: true,
+    plot: plot ? toPlot(plot) : null,
+    client,
+  })
+})
+
+routes.patch("/payments/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.payments)
+    .where(eq(schema.payments.id, id))
+  if (!existing) return c.json({ error: "Unknown payment" }, 404)
+
+  let amount = existing.amount
+  if (body.amount !== undefined) {
+    amount = Number(body.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return c.json({ error: "Amount must be greater than zero" }, 400)
+    }
+    amount = Math.round(amount)
+  }
+
+  const [updated] = await db
+    .update(schema.payments)
+    .set({
+      type: oneOf(body.type, PAYMENT_TYPES, existing.type),
+      amount,
+      date: isDate(str(body.date)) ? str(body.date) : existing.date,
+      status: oneOf(body.status, PAYMENT_STATUSES, existing.status),
+      method: oneOf(body.method, PAYMENT_METHODS, existing.method),
+    })
+    .where(eq(schema.payments.id, id))
+    .returning()
+  return c.json(updated)
+})
+
+routes.delete("/payments/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.payments)
+    .where(eq(schema.payments.id, id))
+  if (!existing) return c.json({ error: "Unknown payment" }, 404)
+
+  await db.delete(schema.payments).where(eq(schema.payments.id, id))
+  return c.json({ ok: true })
+})
+
+routes.patch("/agreements/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.agreements)
+    .where(eq(schema.agreements.id, id))
+  if (!existing) return c.json({ error: "Unknown agreement" }, 404)
+
+  const [updated] = await db
+    .update(schema.agreements)
+    .set({
+      type: oneOf(body.type, AGREEMENT_TYPES, existing.type),
+      dateSigned: isDate(str(body.dateSigned))
+        ? str(body.dateSigned)
+        : existing.dateSigned,
+      status: oneOf(body.status, AGREEMENT_STATUSES, existing.status),
+    })
+    .where(eq(schema.agreements.id, id))
+    .returning()
+  return c.json(updated)
+})
+
+routes.delete("/agreements/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.agreements)
+    .where(eq(schema.agreements.id, id))
+  if (!existing) return c.json({ error: "Unknown agreement" }, 404)
+
+  await db.delete(schema.agreements).where(eq(schema.agreements.id, id))
+  return c.json({ ok: true })
+})
+
+routes.patch("/reports/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.generatedReports)
+    .where(eq(schema.generatedReports.id, id))
+  if (!existing) return c.json({ error: "Unknown report" }, 404)
+
+  const [updated] = await db
+    .update(schema.generatedReports)
+    .set({
+      name: str(body.name) || existing.name,
+      type: str(body.type) || existing.type,
+      status: oneOf(body.status, REPORT_STATUSES, existing.status),
+    })
+    .where(eq(schema.generatedReports.id, id))
+    .returning()
+  return c.json(updated)
+})
+
+routes.delete("/reports/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.generatedReports)
+    .where(eq(schema.generatedReports.id, id))
+  if (!existing) return c.json({ error: "Unknown report" }, 404)
+
+  await db
+    .delete(schema.generatedReports)
+    .where(eq(schema.generatedReports.id, id))
+  return c.json({ ok: true })
 })
 
 /* --------------------------------- helpers --------------------------------- */

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto"
 import { createRemoteJWKSet, jwtVerify } from "jose"
 import type { Context, Next } from "hono"
 import { pool } from "./db"
@@ -65,6 +66,54 @@ export async function adminGuard(c: Context<AppEnv>, next: Next) {
   if (caller.role !== "admin") return c.json({ error: "Admin only" }, 403)
   c.set("caller", caller)
   await next()
+}
+
+/**
+ * Provisions the Neon Auth account (role "client") that belongs to a
+ * `clients` row, so the family can sign in at the client portal. Called when
+ * staff add a client — the client table, not the accounts page, is the source
+ * of truth for portal access — and by family self-registration. Returns the
+ * one-time password for staff to hand over (when none was supplied), or a
+ * structured failure the caller can report.
+ */
+export async function provisionClientAccount(
+  name: string,
+  email: string,
+  origin?: string,
+  password?: string
+): Promise<
+  | { ok: true; tempPassword: string }
+  | { ok: false; error: string; status?: number }
+> {
+  if (!authBaseUrl) return { ok: false, error: "Neon Auth is not enabled", status: 500 }
+  const tempPassword = password ?? randomBytes(9).toString("base64url") // 12 chars, high entropy
+  const res = await fetch(`${authBaseUrl}/sign-up/email`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      // The auth server requires an Origin; forward the caller's (trusted
+      // localhost/dev origins are pre-approved on Neon Auth).
+      Origin: origin ?? "http://localhost:5173",
+    },
+    body: JSON.stringify({ email, name, password: tempPassword }),
+  })
+  if (!res.ok) {
+    const payload = (await res.json().catch(() => ({}))) as {
+      message?: string
+    }
+    return {
+      ok: false,
+      error: payload.message ?? `sign-up failed (${res.status})`,
+      status: res.status,
+    }
+  }
+  const user = (await res.json().catch(() => ({}))) as { user?: { id?: string } }
+  if (!user.user?.id) return { ok: false, error: "sign-up returned no user", status: 502 }
+  await pool.query('update neon_auth."user" set role = $1 where id = $2', [
+    "client",
+    user.user.id,
+  ])
+  return { ok: true, tempPassword }
 }
 
 /** Staff-facing listing routes: admin or staff. Clients never list everything. */

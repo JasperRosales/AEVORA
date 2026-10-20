@@ -9,12 +9,19 @@ import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeletePaymentModal,
+  EditPaymentModal,
+} from "@/features/shared/record-dialogs"
+import type { Payment } from "@/types/domain"
 
 export function PaymentsPage() {
   const { payments } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [methodFilter, setMethodFilter] = useState("All")
+  const [editing, setEditing] = useState<Payment | null>(null)
+  const [deleting, setDeleting] = useState<Payment | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -32,7 +39,7 @@ export function PaymentsPage() {
           (statusFilter === "All" || p.status === statusFilter) &&
           (methodFilter === "All" || p.method === methodFilter)
       ),
-    [query, statusFilter, methodFilter]
+    [payments, query, statusFilter, methodFilter]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
@@ -188,10 +195,16 @@ export function PaymentsPage() {
                       <StatusBadge status={p.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(p)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(p)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>
                     </td>
@@ -203,6 +216,9 @@ export function PaymentsPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </Card>
       </motion.div>
+
+      <EditPaymentModal record={editing} onClose={() => setEditing(null)} />
+      <DeletePaymentModal record={deleting} onClose={() => setDeleting(null)} />
     </motion.div>
   )
 }

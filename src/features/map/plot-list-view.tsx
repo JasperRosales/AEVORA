@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { Pagination } from "@/components/ui/pagination"
@@ -5,11 +6,17 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { formatCurrency } from "@/lib/format"
 import { rowItem, rowList } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeletePlotModal,
+  EditPlotModal,
+} from "@/features/shared/record-dialogs"
 import type { Plot } from "@/types/domain"
 
 /** Paginated table alternative to the map view. */
 export function PlotListView({ plots }: { plots: Plot[] }) {
   const { page, pageCount, setPage } = usePagination(plots, 12)
+  const [editing, setEditing] = useState<Plot | null>(null)
+  const [deleting, setDeleting] = useState<Plot | null>(null)
 
   return (
     <Card title="Plot List">
@@ -49,10 +56,16 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
                   {p.status === "Available" ? "Available" : "Unavailable"}
                 </td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                  <button
+                    onClick={() => setEditing(p)}
+                    className="neu-button px-2.5 py-1 text-[11px]"
+                  >
                     Edit
                   </button>{" "}
-                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                  <button
+                    onClick={() => setDeleting(p)}
+                    className="neu-button px-2.5 py-1 text-[11px]"
+                  >
                     Delete
                   </button>
                 </td>
@@ -62,6 +75,9 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
         </table>
       </div>
       <Pagination page={page} pageCount={pageCount} onChange={setPage} />
+
+      <EditPlotModal record={editing} onClose={() => setEditing(null)} />
+      <DeletePlotModal record={deleting} onClose={() => setDeleting(null)} />
     </Card>
   )
 }

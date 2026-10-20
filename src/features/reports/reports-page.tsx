@@ -10,7 +10,11 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
-import type { Payment } from "@/types/domain"
+import {
+  DeleteReportModal,
+  EditReportModal,
+} from "@/features/shared/record-dialogs"
+import type { GeneratedReport, Payment } from "@/types/domain"
 
 function groupRevenue(list: Payment[], mode: "week" | "month" | "year") {
   const map = new Map<string, number>()
@@ -259,6 +263,8 @@ export function ReportsPage() {
   const [month, setMonth] = useState("All Months")
   const [appliedCemetery, setAppliedCemetery] = useState("All Cemeteries")
   const [appliedMonth, setAppliedMonth] = useState("All Months")
+  const [editing, setEditing] = useState<GeneratedReport | null>(null)
+  const [deleting, setDeleting] = useState<GeneratedReport | null>(null)
 
   const monthOptions = [
     ...new Set(payments.map((p) => p.date.slice(0, 7))),
@@ -529,10 +535,16 @@ export function ReportsPage() {
                       <StatusBadge status={r.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(r)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(r)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>
                     </td>
@@ -544,6 +556,9 @@ export function ReportsPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </Card>
       </motion.div>
+
+      <EditReportModal record={editing} onClose={() => setEditing(null)} />
+      <DeleteReportModal record={deleting} onClose={() => setDeleting(null)} />
     </motion.div>
   )
 }

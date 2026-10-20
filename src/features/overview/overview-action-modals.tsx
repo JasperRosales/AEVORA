@@ -15,6 +15,7 @@ import {
   createPlot,
   createReport,
   createReservation,
+  type ClientPortalProvision,
 } from "@/lib/neon-api"
 import type { BurialType, Client, Payment, PlotStatus } from "@/types/domain"
 
@@ -98,6 +99,10 @@ function AddClientForm({ onCreated, onClose }: FormProps) {
   const [status, setStatus] = useState<Client["status"]>("Active")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The portal account the API provisions with the record. Held in the modal
+  // (not the transient card notice) so staff can read the one-time password
+  // over to the family before the dialog closes.
+  const [portal, setPortal] = useState<ClientPortalProvision | null>(null)
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault()
@@ -112,12 +117,69 @@ function AddClientForm({ onCreated, onClose }: FormProps) {
         status,
       })
       insertClient(created)
-      onCreated(`Client ${created.clientId} — ${created.fullName} added`)
+      setPortal(created.portal)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setBusy(false)
     }
+  }
+
+  if (portal) {
+    return (
+      <div className="space-y-3">
+        <p className="rounded-lg bg-teal/10 px-3 py-2 text-sm text-deep">
+          Client <strong>{fullName}</strong> was added, and their portal
+          account was created automatically.
+        </p>
+        {portal.tempPassword ? (
+          <>
+            <div className="rounded-lg border border-deep/20 bg-cream px-3 py-2 text-sm">
+              <p className="text-xs font-medium text-deep/60">
+                Portal sign-in for {portal.email}
+              </p>
+              <p className="mt-1 font-mono text-base font-semibold text-navy">
+                {portal.tempPassword}
+              </p>
+              <p className="mt-1 text-xs text-deep/60">
+                Give this password to the family — they can sign in at
+                /client/login.
+              </p>
+            </div>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  onCreated(`Client ${fullName} added — portal login ready`)
+                }
+                className={PRIMARY}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+              The portal account could not be created: {portal.error}
+            </p>
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() =>
+                  onCreated(
+                    `Client ${fullName} added — portal account failed: ${portal.error}`
+                  )
+                }
+                className={PRIMARY}
+              >
+                Done
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    )
   }
 
   return (

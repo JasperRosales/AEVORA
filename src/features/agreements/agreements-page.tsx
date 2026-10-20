@@ -9,12 +9,19 @@ import { cemeteryName } from "@/components/cemetery-selector"
 import { useData } from "@/data/store"
 import { fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeleteAgreementModal,
+  EditAgreementModal,
+} from "@/features/shared/record-dialogs"
+import type { Agreement } from "@/types/domain"
 
 export function AgreementsPage() {
   const { agreements } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")
+  const [editing, setEditing] = useState<Agreement | null>(null)
+  const [deleting, setDeleting] = useState<Agreement | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -32,7 +39,7 @@ export function AgreementsPage() {
           (statusFilter === "All" || a.status === statusFilter) &&
           (typeFilter === "All" || a.type === typeFilter)
       ),
-    [query, statusFilter, typeFilter]
+    [agreements, query, statusFilter, typeFilter]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
@@ -170,10 +177,16 @@ export function AgreementsPage() {
                       <StatusBadge status={a.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(a)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(a)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>
                     </td>
@@ -185,6 +198,9 @@ export function AgreementsPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </Card>
       </motion.div>
+
+      <EditAgreementModal record={editing} onClose={() => setEditing(null)} />
+      <DeleteAgreementModal record={deleting} onClose={() => setDeleting(null)} />
     </motion.div>
   )
 }

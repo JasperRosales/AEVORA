@@ -116,7 +116,7 @@ export interface StaffUser {
 }
 
 async function apiSend<T>(
-  method: "POST" | "DELETE",
+  method: "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown
 ): Promise<T> {
@@ -198,8 +198,23 @@ export interface NewPayment {
   date: string
 }
 
-export function createClient(input: NewClient): Promise<Client> {
-  return apiSend<Client>("POST", "/clients", input)
+/** Portal credentials the API auto-provisions with each new client record. */
+export interface ClientPortalProvision {
+  email: string
+  /** One-time password for the family's first sign-in at /client/login. */
+  tempPassword?: string
+  /** Set when account creation failed — the client row still exists. */
+  error?: string
+}
+
+export function createClient(
+  input: NewClient
+): Promise<Client & { portal: ClientPortalProvision }> {
+  return apiSend<Client & { portal: ClientPortalProvision }>(
+    "POST",
+    "/clients",
+    input
+  )
 }
 
 export function createPlot(input: NewPlot): Promise<Plot> {
@@ -222,4 +237,98 @@ export function createReport(input: {
   type: string
 }): Promise<GeneratedReport> {
   return apiSend<GeneratedReport>("POST", "/reports", input)
+}
+
+/* ---------------------- edits and deletes (per row) ----------------------- */
+
+export function updateClient(
+  id: string,
+  input: Partial<NewClient>
+): Promise<Client> {
+  return apiSend<Client>("PATCH", `/clients/${id}`, input)
+}
+
+export function deleteClient(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/clients/${id}`)
+}
+
+export function updatePlot(
+  id: string,
+  input: Partial<Omit<NewPlot, "cemeteryId" | "section" | "row" | "column">> & {
+    reservedFor?: string
+  }
+): Promise<Plot> {
+  return apiSend<Plot>("PATCH", `/plots/${id}`, input)
+}
+
+export function deletePlot(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/plots/${id}`)
+}
+
+export interface EditReservation {
+  date?: string
+  burialType?: Reservation["burialType"]
+  status?: Reservation["status"]
+  verification?: Reservation["verification"]
+}
+
+export function updateReservation(
+  id: string,
+  input: EditReservation
+): Promise<Reservation> {
+  return apiSend<Reservation>("PATCH", `/reservations/${id}`, input)
+}
+
+/** Deleting a booking also releases the plot; returns the rows it touched. */
+export function deleteReservation(id: string): Promise<{
+  ok: boolean
+  plot: Plot | null
+  client: Client | null
+}> {
+  return apiSend("DELETE", `/reservations/${id}`)
+}
+
+export function updatePayment(
+  id: string,
+  input: Partial<Omit<NewPayment, "clientId" | "plotId">>
+): Promise<Payment> {
+  return apiSend<Payment>("PATCH", `/payments/${id}`, input)
+}
+
+export function deletePayment(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/payments/${id}`)
+}
+
+export interface EditAgreement {
+  type?: Agreement["type"]
+  dateSigned?: string
+  status?: Agreement["status"]
+}
+
+export function updateAgreement(
+  id: string,
+  input: EditAgreement
+): Promise<Agreement> {
+  return apiSend<Agreement>("PATCH", `/agreements/${id}`, input)
+}
+
+export function deleteAgreement(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/agreements/${id}`)
+}
+
+export interface EditReport {
+  name?: string
+  type?: string
+  status?: GeneratedReport["status"]
+}
+
+export function updateReport(
+  id: string,
+  input: EditReport
+): Promise<GeneratedReport> {
+  return apiSend<GeneratedReport>("PATCH", `/reports/${id}`, input)
+}
+
+export function deleteReport(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/reports/${id}`)
 }

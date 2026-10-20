@@ -74,6 +74,9 @@ routes.delete("/attachments/:id", async (c) => {
     return c.json({ error: "Not your reservation" }, 403)
   }
   await deleteObject(row.key)
+  // Drop the row too, or the deleted file would reappear in future listings
+  // with a presigned URL pointing at a missing object.
+  await db.delete(schema.attachments).where(eq(schema.attachments.id, row.id))
   return c.json({ ok: true })
 })
 

@@ -8,12 +8,19 @@ import { StatusBadge } from "@/components/ui/status-badge"
 import { useData } from "@/data/store"
 import { fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeleteClientModal,
+  EditClientModal,
+} from "@/features/shared/record-dialogs"
+import type { Client } from "@/types/domain"
 
 export function ClientsPage() {
   const { clients } = useData()
   const [query, setQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState("All")
   const [statusFilter, setStatusFilter] = useState("All")
+  const [editing, setEditing] = useState<Client | null>(null)
+  const [deleting, setDeleting] = useState<Client | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -31,7 +38,7 @@ export function ClientsPage() {
           (typeFilter === "All" || c.type === typeFilter) &&
           (statusFilter === "All" || c.status === statusFilter)
       ),
-    [query, typeFilter, statusFilter]
+    [clients, query, typeFilter, statusFilter]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
@@ -162,10 +169,16 @@ export function ClientsPage() {
                       <StatusBadge status={c.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(c)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(c)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>
                     </td>
@@ -177,6 +190,9 @@ export function ClientsPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </Card>
       </motion.div>
+
+      <EditClientModal record={editing} onClose={() => setEditing(null)} />
+      <DeleteClientModal record={deleting} onClose={() => setDeleting(null)} />
     </motion.div>
   )
 }

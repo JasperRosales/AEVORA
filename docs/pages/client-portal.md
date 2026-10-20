@@ -7,9 +7,16 @@
 · API in `src/lib/client-api.ts` → `api/routes/client-routes.ts`
 
 The client portal is the mobile-first side of Aevora for families with a
-reservation. When a `client`-role user signs in, `App.tsx` renders this instead
-of the staff dashboard — the sidebar, header, and all staff-only data fetches
-are skipped entirely.
+reservation. It has its own URL — **`/client`** on the same site, with its own
+login screen at **`/client/login`** — so families and staff use distinct entry
+points. When the app loads under `/client`, `App.tsx` renders this instead of
+the staff dashboard — the sidebar, header, and all staff-only data fetches are
+skipped entirely. Sign-in is enforced per side: a `client` account on the main
+site (or a staff/admin account on `/client`) is signed out and shown a message
+pointing to the correct URL, and the `/client/login` form itself rejects
+non-client accounts. Client portal accounts are provisioned automatically when
+staff add a client record. (The `/client/*` paths in the API are server
+endpoints and unrelated to this front-end path.)
 
 ## Shell (`ClientApp`)
 

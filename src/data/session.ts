@@ -66,12 +66,18 @@ export async function refreshSession() {
   }
 }
 
-export async function signIn(email: string, password: string) {
+export async function signIn(
+  email: string,
+  password: string
+): Promise<SessionUser | null> {
   if (!authClient) throw new Error("Authentication is not configured")
   const { error } = await authClient.signIn.email({ email, password })
   if (error) throw new Error(error.message ?? "Sign-in failed")
   clearAuthToken()
   await refreshSession()
+  // The signed-in user, so callers (e.g. the login forms) can check the role
+  // against the portal they signed in on.
+  return state.user
 }
 
 export async function signOut() {

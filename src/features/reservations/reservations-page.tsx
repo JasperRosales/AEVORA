@@ -16,6 +16,10 @@ import { cemeteryName } from "@/components/cemetery-selector"
 import { addAttachment, loadAttachments, useData } from "@/data/store"
 import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeleteReservationModal,
+  EditReservationModal,
+} from "@/features/shared/record-dialogs"
 import type { Reservation } from "@/types/domain"
 
 /** Attachment upload/list backed by Neon Object Storage (the `assets` bucket). */
@@ -115,6 +119,8 @@ export function ReservationsPage() {
   const [verificationFilter, setVerificationFilter] = useState("All")
   const [burialTypeFilter, setBurialTypeFilter] = useState("All")
   const [filesFor, setFilesFor] = useState<string | null>(null)
+  const [editing, setEditing] = useState<Reservation | null>(null)
+  const [deleting, setDeleting] = useState<Reservation | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -135,7 +141,7 @@ export function ReservationsPage() {
             r.verification === verificationFilter) &&
           (burialTypeFilter === "All" || r.burialType === burialTypeFilter)
       ),
-    [query, statusFilter, verificationFilter, burialTypeFilter]
+    [reservations, query, statusFilter, verificationFilter, burialTypeFilter]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
@@ -297,10 +303,16 @@ export function ReservationsPage() {
                       <StatusBadge status={r.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(r)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(r)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>{" "}
                       <button
@@ -336,6 +348,16 @@ export function ReservationsPage() {
           </AnimatePresence>
         </Card>
       </motion.div>
+
+      <EditReservationModal record={editing} onClose={() => setEditing(null)} />
+      <DeleteReservationModal
+        record={deleting}
+        onClose={() => {
+          setDeleting(null)
+          // The deleted row's Files panel (if open) would dangle.
+          if (deleting && filesFor === deleting.id) setFilesFor(null)
+        }}
+      />
     </motion.div>
   )
 }

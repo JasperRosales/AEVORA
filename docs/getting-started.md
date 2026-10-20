@@ -65,8 +65,21 @@ This creates the schema (Drizzle, `api/db/schema.ts`) in the linked Neon branch 
 
 ## Signing in
 
-- **Staff/admin:** open the app and use the login screen (`src/features/auth/login-page.tsx`). Accounts are created by an admin (see [Staff Accounts](staff-accounts.md)).
-- **Client:** a client-role account whose email matches a row in the `clients` table. The portal then shows only that family's records.
+The site has two entry points:
+
+- **Staff/admin:** **`/login`** (e.g. `https://aevora-iota.vercel.app/login`) —
+  the login screen (`src/features/auth/admin-login-page.tsx`) accepts staff and
+  admin accounts. Accounts are created by an admin (see
+  [Staff Accounts](staff-accounts.md)).
+- **Client:** the client portal at **`/client/login`** (e.g.
+  `https://aevora-iota.vercel.app/client/login`) — a client-role account whose
+  email matches a row in the `clients` table. Portal accounts are provisioned
+  automatically when staff add a client (a one-time password is shown in the
+  Add Client modal), and the portal then shows only that family's records.
+
+A role that signs in on the wrong endpoint is signed out and shown an error
+saying which URL to use (`vercel.json` rewrites `/login` and `/client/*` to the
+SPA).
 
 ## Architecture at a glance
 

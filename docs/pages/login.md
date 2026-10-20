@@ -1,34 +1,73 @@
-# Login Page
+# Login Pages
 
-**Route:** shown whenever the session is signed out (the app's entry screen)
-**Source:** `src/features/auth/login-page.tsx` · session logic in `src/data/session.ts`, `src/lib/auth.ts`
+**Routes:** `/login` (admin/staff) · `/client/login` (family portal)
+**Sources:** `src/features/auth/admin-login-page.tsx`,
+`src/features/auth/client-login-page.tsx` · shared form logic in
+`src/features/auth/sign-in-form.ts` · session logic in `src/data/session.ts`,
+`src/lib/auth.ts`
 
-The login screen is the first thing any unauthenticated visitor sees. It stays in
-the initial JavaScript bundle (every other screen is lazy-loaded) so sign-in is
-never delayed by a chunk fetch.
+Each portal has its own login screen, its own component, and its own URL
+endpoint — there is no shared login page. Both stay in the initial JavaScript
+bundle (every other screen is lazy-loaded) so sign-in is never delayed by a
+chunk fetch.
 
-## What it does
+| Screen             | URL              | Design                                                  |
+| ------------------ | ---------------- | ------------------------------------------------------- |
+| `AdminLoginPage`   | `/login`         | Navy dashboard aesthetic: logo lockup, cream card        |
+| `ClientLoginPage`  | `/client/login`  | Mobile-first: cream page, white card, teal accents       |
 
-- Collects **email** and **password** and calls `signIn()`, which uses the Neon
-  Auth (Managed Better Auth) client's `signIn.email()` method.
+## What they do
+
+- Collect **email** and **password** and call `signIn()`, which uses the Neon
+  Auth (Managed Better Auth) client's `signIn.email()` method. The shared form
+  hook (`useSignInForm`) is used by both screens; only the presentation
+  differs.
+- **The wrong audience is rejected at the form.** A staff/admin account on
+  `/client/login` (or a client account on `/login`) is signed straight back out
+  and shown an error naming the correct URL — the wrong portal's dashboard
+  never renders. The same check in `App.tsx` covers signed-in users who navigate
+  to the wrong side's URL directly.
 - On success, `refreshSession()` runs: it reads the browser session cookie,
-  fetches `/api/me` with the freshly minted JWT to resolve the user's **role**,
-  and the app routes accordingly:
+  fetches `/me` with the freshly minted JWT to resolve the user's **role**,
+  and the endpoint plus role decide what renders:
 
-  | Role               | Destination                                             |
-  | ------------------ | ------------------------------------------------------- |
-  | `admin` / `staff`  | Staff dashboard (sidebar layout)                        |
-  | `client`           | Mobile client portal                                    |
-  | anything else      | Staff shell, but all staff-only API routes return 403   |
+  | Condition                                    | Destination                                             |
+  | -------------------------------------------- | ------------------------------------------------------- |
+  | `/login`, `admin` / `staff` role             | Staff dashboard (sidebar layout)                        |
+  | `/login`, `client` role                      | Signed out — error pointing to `/client/login`          |
+  | `/client/login`, `client` role               | Mobile client portal                                    |
+  | `/client/login`, staff/admin role            | Signed out — error pointing to `/login`                 |
+  | `/login`, any other role                     | Staff shell, but all staff-only API routes return 403   |
 
 - On failure, the error message from the auth server is displayed inline above
   the submit button.
+- Signed-out visits to `/` or `/client` are pointed at the matching login
+  endpoint via `history.replaceState` (no reload), and signed-in visits to a
+  login endpoint are pointed at the app (`vercel.json` rewrites both endpoints
+  to the SPA).
 
-## Notes
+## Client accounts come from the client records
 
-- If `VITE_NEON_AUTH_URL` is missing, the auth client is not created and
-  signing in reports "Authentication is not configured".
-- The page is presentational only — it does not talk to the API function
-  directly; all auth goes through the Neon Auth session cookie + JWT flow.
-- Sessions persist across reloads (cookie-based) via `refreshSession()` called
-  in `App.tsx` on mount.
+Portal logins are **not** created on an accounts page. When staff add a client
+on the Overview quick action ("Add Client"), the API provisions the family's
+Neon Auth account (role `client`) in the same step and returns a one-time
+password, which the modal shows before it closes. Editing a client's email
+follows through to the auth account; deleting the client removes it (and its
+sessions) too.
+
+---
+
+## Signing in
+
+The site has two entry points:
+
+- **Staff/admin:** **`/login`** (e.g. `https://aevora-iota.vercel.app/login`) —
+  accepts staff and admin accounts. Accounts are created by an admin (see
+  [Staff Accounts](staff-accounts.md)).
+- **Client:** **`/client/login`** (e.g.
+  `https://aevora-iota.vercel.app/client/login`) — a client-role account whose
+  email matches a row in the `clients` table (auto-provisioned when the client
+  is added). The portal then shows only that family's records.
+
+A role that signs in on the wrong endpoint is signed out and shown an error
+saying which URL to use.

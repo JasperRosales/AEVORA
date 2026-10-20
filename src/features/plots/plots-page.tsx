@@ -16,6 +16,11 @@ import { useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import { usePagination } from "@/lib/use-pagination"
+import {
+  DeletePlotModal,
+  EditPlotModal,
+} from "@/features/shared/record-dialogs"
+import type { Plot } from "@/types/domain"
 
 export function PlotsPage() {
   const { cemeteries, plots } = useData()
@@ -23,6 +28,8 @@ export function PlotsPage() {
   const [statusFilter, setStatusFilter] = useState("All")
   const [typeFilter, setTypeFilter] = useState("All")
   const [cemeteryFilter, setCemeteryFilter] = useState("All")
+  const [editing, setEditing] = useState<Plot | null>(null)
+  const [deleting, setDeleting] = useState<Plot | null>(null)
 
   const clearFilters = () => {
     setQuery("")
@@ -41,7 +48,7 @@ export function PlotsPage() {
           (typeFilter === "All" || p.type === typeFilter) &&
           (cemeteryFilter === "All" || p.cemeteryId === cemeteryFilter)
       ),
-    [query, statusFilter, typeFilter, cemeteryFilter]
+    [plots, query, statusFilter, typeFilter, cemeteryFilter]
   )
   const {
     page,
@@ -198,10 +205,16 @@ export function PlotsPage() {
                       <StatusBadge status={p.status} />
                     </td>
                     <td>
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setEditing(p)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Edit
                       </button>{" "}
-                      <button className="neu-button px-2.5 py-1 text-[11px]">
+                      <button
+                        onClick={() => setDeleting(p)}
+                        className="neu-button px-2.5 py-1 text-[11px]"
+                      >
                         Delete
                       </button>
                     </td>
@@ -213,6 +226,9 @@ export function PlotsPage() {
           <Pagination page={page} pageCount={pageCount} onChange={setPage} />
         </Card>
       </motion.div>
+
+      <EditPlotModal record={editing} onClose={() => setEditing(null)} />
+      <DeletePlotModal record={deleting} onClose={() => setDeleting(null)} />
     </motion.div>
   )
 }

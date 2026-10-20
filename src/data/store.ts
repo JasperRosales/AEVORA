@@ -174,3 +174,74 @@ export function insertReservation(created: {
     ),
   })
 }
+
+/* ------------------- edits and deletes (local update) ------------------- */
+
+/** Swaps a row in place by id — the PATCH-shaped counterpart of insert*. */
+function replace<T extends { id: string }>(rows: T[], row: T): T[] {
+  return rows.map((r) => (r.id === row.id ? row : r))
+}
+
+export function updateClientRow(row: Client) {
+  set({ clients: replace(state.clients, row) })
+}
+
+export function removeClient(id: string) {
+  set({ clients: state.clients.filter((c) => c.id !== id) })
+}
+
+export function updatePlotRow(row: Plot) {
+  set({ plots: replace(state.plots, row) })
+}
+
+export function removePlot(id: string) {
+  set({ plots: state.plots.filter((p) => p.id !== id) })
+}
+
+export function updateReservationRow(row: Reservation) {
+  set({ reservations: replace(state.reservations, row) })
+}
+
+/**
+ * Applies a deleted reservation plus the release the API performed alongside
+ * it: the freed plot (back to Available) and the client's decremented count.
+ */
+export function removeReservation(result: {
+  id: string
+  plot: Plot | null
+  client: Client | null
+}) {
+  set({
+    reservations: state.reservations.filter((r) => r.id !== result.id),
+    ...(result.plot
+      ? { plots: replace(state.plots, result.plot) }
+      : {}),
+    ...(result.client
+      ? { clients: replace(state.clients, result.client) }
+      : {}),
+  })
+}
+
+export function updatePaymentRow(row: Payment) {
+  set({ payments: replace(state.payments, row) })
+}
+
+export function removePayment(id: string) {
+  set({ payments: state.payments.filter((p) => p.id !== id) })
+}
+
+export function updateAgreementRow(row: Agreement) {
+  set({ agreements: replace(state.agreements, row) })
+}
+
+export function removeAgreement(id: string) {
+  set({ agreements: state.agreements.filter((a) => a.id !== id) })
+}
+
+export function updateReportRow(row: GeneratedReport) {
+  set({ generatedReports: replace(state.generatedReports, row) })
+}
+
+export function removeReport(id: string) {
+  set({ generatedReports: state.generatedReports.filter((r) => r.id !== id) })
+}

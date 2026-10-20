@@ -3,9 +3,10 @@ import { AnimatePresence, motion } from "motion/react"
 import { Header } from "@/components/layout/header"
 import { Sidebar, type Page } from "@/components/layout/sidebar"
 import { PageFallback } from "@/components/ui/page-fallback"
-import { refreshSession, useSession } from "@/data/session"
+import { refreshSession, signOut, useSession } from "@/data/session"
 import { ensureDataLoaded } from "@/data/store"
-import { LoginPage } from "@/features/auth/login-page"
+import { AdminLoginPage } from "@/features/auth/admin-login-page"
+import { ClientLoginPage } from "@/features/auth/client-login-page"
 import {
   ClientApp,
   PAGES,
@@ -16,10 +17,31 @@ import { pageSwap, screenFade } from "@/lib/motion"
 
 const STAFF_PAGE_HASH = "#/staff-accounts"
 
+/**
+ * Which portal this page load serves. The site is split by path so the two
+ * audiences get distinct URLs and endpoints:
+ *
+ *   /login        admin/staff login        /        staff dashboard
+ *   /client/login family login             /client  family client portal
+ *
+ * Signed-out visits to an app URL are pointed at that side's login endpoint
+ * (see the effect below); signed-in visits to a login endpoint go the other
+ * way. A role that doesn't match the portal is signed out with an error (see
+ * the mismatch effect below).
+ */
+const pathname = window.location.pathname
+const side: "admin" | "client" = pathname.startsWith("/client")
+  ? "client"
+  : "admin"
+const isLoginEndpoint = pathname === "/login" || pathname === "/client/login"
+const loginEndpoint = side === "client" ? "/client/login" : "/login"
+const appEndpoint = side === "client" ? "/client" : "/"
+
 export default function App() {
   const { status, user } = useSession()
   const [page, setPage] = useState<Page>("Overview")
   const [hash, setHash] = useState(() => window.location.hash)
+  const [mismatch, setMismatch] = useState<string | null>(null)
 
   useEffect(() => {
     void refreshSession()
@@ -29,12 +51,41 @@ export default function App() {
   }, [])
 
   // The staff dashboard (and its all-records API calls) only loads for
-  // staff/admin; clients get the mobile portal, which fetches its own
-  // server-scoped data instead.
+  // staff/admin on the admin side; clients get the mobile portal at
+  // /client, which fetches its own server-scoped data instead.
   const isClient = user?.role === "client"
   useEffect(() => {
-    if (status === "signedin" && !isClient) ensureDataLoaded()
+    if (status === "signedin" && !isClient && side === "admin") {
+      ensureDataLoaded()
+    }
   }, [status, isClient])
+
+  // The two portals are separate URLs: a client account on the admin side (or
+  // a staff/admin account on /client) is signed out and told where to go. The
+  // message is stashed once sign-out finishes so the login screen can show it.
+  const wrongSide =
+    status === "signedin" && (side === "client" ? !isClient : isClient)
+  useEffect(() => {
+    if (!wrongSide) return
+    const message =
+      side === "client"
+        ? "This account cannot sign in on the client portal. Staff and admin accounts sign in on the main site."
+        : "This account cannot sign in on the main site. Clients sign in on the client portal."
+    void signOut().then(() => setMismatch(message))
+  }, [wrongSide])
+
+  // Keep the address bar on the endpoint that matches the session: a
+  // signed-out visit to an app URL lands on that side's login endpoint, and a
+  // signed-in visit to a login endpoint lands on the app. replaceState only —
+  // the screen is already selected for the session state below, so no reload.
+  useEffect(() => {
+    if (status === "loading" || wrongSide) return
+    if (status === "signedout" && !isLoginEndpoint) {
+      window.history.replaceState(null, "", loginEndpoint)
+    } else if (status === "signedin" && isLoginEndpoint) {
+      window.history.replaceState(null, "", appEndpoint)
+    }
+  }, [status, wrongSide])
 
   // A fresh screen starts at the top — quick actions and the sidebar both
   // jump between pages from anywhere in a scrolled view.
@@ -43,13 +94,15 @@ export default function App() {
   }, [page])
 
   // One key per top-level screen so AnimatePresence can cross-fade between
-  // the login wall, the client portal and the staff dashboard.
+  // the login wall, the client portal and the staff dashboard. While a
+  // role/portal mismatch is being signed out, keep the loading screen up so
+  // the wrong portal never renders.
   const screen =
-    status === "loading"
+    status === "loading" || wrongSide
       ? "loading"
       : status === "signedout"
-        ? "login"
-        : isClient
+        ? `login-${side}`
+        : side === "client"
           ? "client"
           : hash === STAFF_PAGE_HASH
             ? user?.role === "admin"
@@ -61,10 +114,19 @@ export default function App() {
 
   if (screen === "loading") {
     content = <PageFallback fullScreen />
-  } else if (screen === "login") {
-    // The login screen is the first thing a signed-out user sees, so it stays
-    // in the initial bundle (see the lazy-route notes in features/lazy-routes.ts).
-    content = <LoginPage />
+  } else if (screen === "login-admin" || screen === "login-client") {
+    // Each portal has its own login screen at its own URL endpoint (/login
+    // and /client/login; see App.tsx's path split above). Both stay in the
+    // initial bundle — the login wall is the first thing a signed-out user
+    // sees (see the lazy-route notes in features/lazy-routes.ts).
+    // `mismatch` explains a wrong-portal sign-out after the auto sign-out
+    // effect above ran.
+    content =
+      screen === "login-client" ? (
+        <ClientLoginPage notice={mismatch} />
+      ) : (
+        <AdminLoginPage notice={mismatch} />
+      )
   } else if (screen === "client") {
     // Client accounts see the mobile-first portal, not the staff dashboard.
     content = (
