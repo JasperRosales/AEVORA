@@ -5,6 +5,7 @@ import {
   CalendarPlus,
   ClipboardCheck,
   CreditCard,
+  Download,
   FileSignature,
   FileText,
   LayoutGrid,
@@ -16,7 +17,7 @@ import {
 import { motion } from "motion/react"
 import type { Page } from "@/components/layout/sidebar"
 import { Card } from "@/components/ui/card"
-import { insertReport } from "@/data/store"
+import { insertReport, useData } from "@/data/store"
 import type { DashboardProps } from "@/features/lazy-routes"
 import { createReport } from "@/lib/neon-api"
 import {
@@ -27,6 +28,8 @@ import {
   RecordPaymentModal,
   type ReportType,
 } from "./overview-action-modals"
+import { ReportPreviewModal } from "./overview-report-preview"
+import { buildReport, type Report } from "./overview-reports"
 
 /** What a quick-action tile does: open a form, or jump to another screen. */
 type Action =
@@ -99,6 +102,9 @@ const reportShortcuts: { label: ReportType; icon: typeof PieChart }[] = [
   { label: "Agreements", icon: FileSignature },
   { label: "Information Checking", icon: ClipboardCheck },
 ]
+
+/** Wait between mirroring a report into the store and showing its preview. */
+const PREVIEW_DELAY_MS = 350
 
 const pressSpring = { type: "spring", stiffness: 420, damping: 26 } as const
 
@@ -207,21 +213,46 @@ export function QuickActionsCard({ onNavigate, onPrefetch }: DashboardProps) {
 }
 
 export function ReportsCard({ onNavigate }: DashboardProps) {
-  const [busy, setBusy] = useState<ReportType | null>(null)
+  const data = useData()
   const [error, setError] = useState<string | null>(null)
+  /** The analytics + preview currently on screen, if any. */
+  const [preview, setPreview] = useState<{
+    report: Report
+    busy: boolean
+  } | null>(null)
 
-  /** Generates the report record, then opens the Reports log to show it. */
-  async function generate(type: ReportType) {
-    if (busy) return
-    setBusy(type)
+  // The "generating" pill stays up until the report record exists and the
+  // preview has had a beat to settle in.
+  useEffect(() => {
+    if (!preview || !preview.busy) return
+    const timer = setTimeout(
+      () =>
+        setPreview((current) =>
+          current ? { ...current, busy: false } : current
+        ),
+      PREVIEW_DELAY_MS
+    )
+    return () => clearTimeout(timer)
+  }, [preview])
+
+  /**
+   * Builds the report from the current records, previews it, and notes it in
+   * the Reports log. Logging is best-effort: the analytics and CSV download
+   * come from local data, so a failed call only shows a note.
+   */
+  function generate(type: ReportType) {
     setError(null)
+    setPreview({ report: buildReport(type, data), busy: true })
+    void logReport(type)
+  }
+
+  async function logReport(type: ReportType) {
     try {
       insertReport(await createReport({ type, name: `${type} Report` }))
-      onNavigate?.("Reports")
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setBusy(null)
+      setError(
+        `Report logged locally — ${err instanceof Error ? err.message : String(err)}`
+      )
     }
   }
 
@@ -229,39 +260,55 @@ export function ReportsCard({ onNavigate }: DashboardProps) {
     <Card
       title="Reports and Analytics"
       action={
-        error && (
-          <span
-            role="status"
-            className="text-right text-xs font-medium text-red-600"
-          >
-            {error}
-          </span>
-        )
+        <span
+          role="status"
+          className={`text-right text-xs font-medium ${
+            error ? "text-red-600" : "text-deep/60"
+          }`}
+        >
+          {error ??
+            (preview?.busy
+              ? "Preparing report..."
+              : "Click a tile to preview and download")}
+        </span>
       }
     >
+      {preview && (
+        <ReportPreviewModal
+          report={preview.report}
+          onClose={() => setPreview(null)}
+          onOpenReports={() => {
+            setPreview(null)
+            onNavigate?.("Reports")
+          }}
+        />
+      )}
       <div className="grid grid-cols-3 grid-rows-2 gap-3">
         {reportShortcuts.map(({ label, icon: Icon }) => (
-          <motion.button
-            key={label}
-            type="button"
-            aria-label={`Generate ${label} report`}
-            disabled={busy !== null}
-            onClick={() => generate(label)}
-            whileHover={{ y: -3 }}
-            whileTap={{ scale: 0.97 }}
-            transition={pressSpring}
-            className="neu-button flex aspect-square flex-col items-center justify-center gap-2 p-2 disabled:opacity-60"
-          >
-            <Icon
-              size={20}
-              className={`text-deep transition-transform duration-200 ${
-                busy === label ? "animate-pulse" : ""
-              }`}
-            />
-            <span className="text-center text-[11px] leading-tight font-medium">
-              {label}
+          <div key={label} className="group relative">
+            <motion.button
+              type="button"
+              aria-label={`Preview ${label} report`}
+              onClick={() => generate(label)}
+              whileHover={{ y: -3 }}
+              whileTap={{ scale: 0.97 }}
+              transition={pressSpring}
+              className="neu-button flex aspect-square w-full flex-col items-center justify-center gap-2 p-2"
+            >
+              <Icon
+                size={20}
+                className="text-deep transition-transform duration-200 group-hover:scale-110"
+              />
+              <span className="text-center text-[11px] leading-tight font-medium">
+                {label}
+              </span>
+            </motion.button>
+            <span className="pointer-events-none absolute -top-9 left-1/2 z-10 rounded-md bg-navy px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+              <span className="flex items-center gap-1 text-[11px] whitespace-nowrap text-cream">
+                <Download size={11} /> Preview &amp; CSV
+              </span>
             </span>
-          </motion.button>
+          </div>
         ))}
       </div>
     </Card>

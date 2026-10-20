@@ -23,21 +23,26 @@ cards, each living in its own module under `src/features/overview/`.
    **Record Payment**, and **Generate Report** open a form modal
    (`overview-action-modals.tsx`) that POSTs to the API and reports the new
    record back on the card header; **View Cemetery Map**, **Review Information
-   Checking**, and **View Agreements** navigate to the matching screen. The
-   report tiles (Plot Occupancy, Reservations, Clients, Payments, Agreements,
-   Information Checking) generate a report record and open the Reports log.
-5. **Recent Reservations** (`overview-record-tables.tsx`) — the five most
+   Checking**, and **View Agreements** navigate to the matching screen.
+5. **Reports and Analytics tiles** (`overview-quick-actions.tsx` +
+   `overview-reports.ts`, `overview-report-preview.tsx`) — each of the six tiles
+   (Plot Occupancy, Reservations, Clients, Payments, Agreements, Information
+   Checking) computes that report from the current records, previews it in a
+   modal (headline figures, status/type breakdown, detail table), and can
+   **Download CSV** or jump to the Reports log. Generating also logs the report
+   (`POST /reports`) so it appears in Recent Reports.
+6. **Recent Reservations** (`overview-record-tables.tsx`) — the five most
    recent reservations with client, cemetery, plot, date, and status badge.
-6. **Pending Checks** (`overview-record-tables.tsx`) — reservations whose
+7. **Pending Checks** (`overview-record-tables.tsx`) — reservations whose
    verification status is not yet "Verified".
-7. **Payment Summary** (`overview-summary-cards.tsx`) — amount collected (Paid
+8. **Payment Summary** (`overview-summary-cards.tsx`) — amount collected (Paid
    payments), a stacked Paid/Pending/Overdue bar, and remaining balance.
-8. **Agreement Summary** (`overview-summary-cards.tsx`) — active vs total
+9. **Agreement Summary** (`overview-summary-cards.tsx`) — active vs total
    agreements with a status breakdown.
-9. **System Notifications** (`overview-info-cards.tsx`) — the notifications feed.
-10. **Recent Activity** (`overview-info-cards.tsx`) — audit-style feed (action,
+10. **System Notifications** (`overview-info-cards.tsx`) — the notifications feed.
+11. **Recent Activity** (`overview-info-cards.tsx`) — audit-style feed (action,
     user, timestamp, related record).
-11. **Reports shortcut card** (`overview-quick-actions.tsx`).
+12. **Reports and Analytics card** — the six report tiles described in item 4.
 
 ## Data
 
@@ -55,6 +60,16 @@ the plot (`Reserved`) and bumps the client's reservation count server-side, and
 the response carries all three updated rows. The client mirrors those rows into
 the store so the dashboard updates without a reload; the next `fetchAll()`
 returns the same state from Postgres.
+
+## Report generation
+
+`overview-reports.ts` derives each of the six reports from the store: headline
+figures, a status/type breakdown (counts with shares), and a detail table. All
+of it is client-side math — the same approach the Reports page uses for its
+charts — so a report still renders when the API is unreachable; only the
+`POST /reports` log entry is skipped (the card says so). **Download CSV**
+serializes the detail table (RFC-style quoting for commas and quotes) and saves
+it as `<type>-report-<date>.csv`.
 
 ## Related
 
