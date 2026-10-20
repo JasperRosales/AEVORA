@@ -1,4 +1,4 @@
-import { Bell, LogOut, Search } from "lucide-react"
+import { Bell, LogOut } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { signOut, useSession } from "@/data/session"
 import { useData } from "@/data/store"
@@ -37,16 +37,6 @@ export function Header({ title }: { title: string }) {
             </motion.h1>
           </AnimatePresence>
         </div>
-      </div>
-      <div className="relative ml-8">
-        <Search
-          size={15}
-          className="absolute top-1/2 left-2.5 -translate-y-1/2 text-deep/60"
-        />
-        <input
-          placeholder="Search records..."
-          className="w-72 rounded-lg border border-deep/30 bg-cream py-1.5 pr-3 pl-8 text-sm transition outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
-        />
       </div>
       <div className="ml-auto flex items-center gap-5">
         <motion.div
