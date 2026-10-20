@@ -1,4 +1,11 @@
-import { Banknote, CalendarCheck, CheckCircle, Clock, Home } from "lucide-react"
+import {
+  Banknote,
+  CalendarCheck,
+  CheckCircle,
+  Clock,
+  Home,
+  Search,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { Card } from "@/components/ui/card"
@@ -170,12 +177,18 @@ export function CemeteryMapPage() {
                 </option>
               ))}
             </select>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search plot number..."
-              className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
-            />
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute top-1/2 left-3 -translate-y-1/2 text-deep/50"
+              />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search plot number..."
+                className="rounded-lg border border-deep/30 bg-cream py-1.5 pr-3 pl-9 text-sm"
+              />
+            </div>
             <button
               onClick={() => {
                 setCemeteryId("")

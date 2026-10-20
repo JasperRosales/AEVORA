@@ -1,4 +1,4 @@
-import { AlertCircle, Banknote, CheckCircle, Clock } from "lucide-react"
+import { AlertCircle, Banknote, CheckCircle, Clock, Search } from "lucide-react"
 import { useMemo, useState } from "react"
 import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
@@ -103,12 +103,18 @@ export function PaymentsPage() {
       <motion.div variants={fadeUp}>
         <Card title="Payment Records">
           <div className="mb-3 flex flex-wrap gap-2">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search receipt, client, or plot..."
-              className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
-            />
+            <div className="relative">
+              <Search
+                size={14}
+                className="absolute top-1/2 left-3 -translate-y-1/2 text-deep/50"
+              />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search receipt, client, or plot..."
+                className="rounded-lg border border-deep/30 bg-cream py-1.5 pr-3 pl-9 text-sm"
+              />
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
