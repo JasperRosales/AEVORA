@@ -1,88 +1,59 @@
-import { motion } from "motion/react"
-import { EASE_OUT } from "@/lib/motion"
+import { Skeleton } from "@/components/ui/skeleton"
 
 /**
- * Animated logo loading screen featuring the Aevora icon and wordmark,
- * styled with the deep navy & teal theme.
+ * Suspense fallback for lazily loaded screens. Instead of a spinner it draws
+ * the page's component skeleton — greeting card, KPI tiles and two content
+ * cards — so the layout does not jump when the real screen arrives.
  */
-export function PageFallback({ fullScreen = false }: { fullScreen?: boolean }) {
-  const letters = "Aevora".split("")
+export function PageFallback() {
+  return (
+    <div className="space-y-6" role="status" aria-busy="true">
+      <span className="sr-only">Loading page…</span>
 
-  const content = (
-    <div className="flex flex-col items-center justify-center gap-4">
-      {/* Icon + animated wordmark lockup */}
-      <div className="flex items-center gap-3.5">
-        <motion.img
-          src="/aevora-icon.ico"
-          alt="Aevora logo"
-          initial={{ opacity: 0, scale: 0.7, rotate: -15 }}
-          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{
-            type: "spring",
-            stiffness: 300,
-            damping: 20,
-            duration: 0.6,
-          }}
-          className="size-10 rounded-xl shadow-lg shadow-black/30"
-        />
-        
-        <div className="flex overflow-hidden font-bold tracking-wider text-cream text-xl">
-          {letters.map((char, i) => (
-            <motion.span
-              key={i}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                delay: 0.15 + i * 0.07,
-                duration: 0.45,
-                ease: EASE_OUT,
-              }}
-              className="inline-block"
-            >
-              {char}
-            </motion.span>
-          ))}
+      {/* Greeting / page header card */}
+      <div className="neu flex flex-wrap items-center justify-between gap-4 p-4">
+        <div className="w-full max-w-md space-y-2.5">
+          <Skeleton className="h-6 w-2/3" />
+          <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3 w-1/2" />
         </div>
+        <Skeleton className="h-9 w-36 rounded-xl" />
       </div>
 
-      {/* Subtle pulsing loading dots */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.6, duration: 0.3 }}
-        className="flex items-center gap-1.5"
-        aria-hidden="true"
-      >
-        {[0, 1, 2].map((i) => (
-          <motion.span
-            key={i}
-            className="size-1.5 rounded-full bg-teal"
-            animate={{ opacity: [0.3, 1, 0.3], scale: [0.8, 1.2, 0.8] }}
-            transition={{
-              duration: 1.2,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 0.2,
-            }}
-          />
+      {/* KPI tiles */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="neu flex items-center gap-3 p-4">
+            <Skeleton className="size-10 shrink-0 rounded-xl" />
+            <div className="min-w-0 flex-1 space-y-2">
+              <Skeleton className="h-2.5 w-20" />
+              <Skeleton className="h-6 w-14" />
+              <Skeleton className="h-2.5 w-24" />
+            </div>
+          </div>
         ))}
-      </motion.div>
+      </div>
+
+      {/* Content cards */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }, (_, index) => (
+          <div key={index} className="neu p-4">
+            <div className="mb-4 flex items-center justify-between">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="space-y-3.5">
+              {Array.from({ length: 5 }, (_, row) => (
+                <div key={row} className="flex items-center gap-3">
+                  <Skeleton className="size-8 shrink-0 rounded-full" />
+                  <Skeleton className="h-3 flex-1" />
+                  <Skeleton className="h-3 w-14 shrink-0" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
-
-  if (fullScreen) {
-    return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
-        className="flex min-h-svh items-center justify-center bg-navy"
-      >
-        {content}
-      </motion.div>
-    )
-  }
-
-  return <div className="py-24 flex justify-center">{content}</div>
 }

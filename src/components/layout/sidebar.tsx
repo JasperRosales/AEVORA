@@ -109,14 +109,6 @@ export function Sidebar({
           )
         })}
       </motion.nav>
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5, duration: 0.4 }}
-        className="mt-auto px-2 text-[10px] leading-relaxed text-cream/50"
-      >
-        Batangas State University — The National Engineering University
-      </motion.p>
     </motion.aside>
   )
 }

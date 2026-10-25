@@ -24,7 +24,12 @@ export async function getAuthToken(): Promise<string | null> {
   if (!authClient) return null
   if (cached && cached.exp > Date.now() + 30_000) return cached.token
   const { data, error } = await authClient.token()
-  const token = data?.token
+  // The Neon adapter maps `/token` onto its get-session hook, so the JWT can
+  // arrive either as `{ token }` or nested in the session payload as
+  // `{ session: { token } }` depending on the adapter version.
+  const token =
+    (data as { token?: string } | null)?.token ??
+    (data as { session?: { token?: string } } | null)?.session?.token
   if (error || !token) return null
   cached = { token, exp: jwtExp(token) ?? Date.now() + 14 * 60_000 }
   return token

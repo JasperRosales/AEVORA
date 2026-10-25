@@ -4,9 +4,32 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/x-icon" href="/aevora-icon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0A1128" />
     <title>Aevora</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Paints the brand background before React (and the opening splash)
+         mounts, so there is no white flash while the bundle loads. -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 99;
+        background: radial-gradient(
+          circle at center,
+          #0f1c3f 0%,
+          #0b172a 50%,
+          #0a1128 100%
+        );
+      }
+    </style>
   </head>
   <body>
+    <div id="boot" aria-hidden="true"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

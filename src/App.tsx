@@ -1,12 +1,21 @@
-import { Suspense, useEffect, useState, type ReactNode } from "react"
+import {
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { Header } from "@/components/layout/header"
 import { Sidebar, type Page } from "@/components/layout/sidebar"
 import { PageFallback } from "@/components/ui/page-fallback"
+import { AevoraSplash } from "@/components/ui/aevora-splash"
 import { refreshSession, signOut, useSession } from "@/data/session"
 import { ensureDataLoaded } from "@/data/store"
 import { AdminLoginPage } from "@/features/auth/admin-login-page"
 import { ClientLoginPage } from "@/features/auth/client-login-page"
+import { LoginSkeleton } from "@/features/auth/login-skeleton"
 import {
   ClientApp,
   PAGES,
@@ -16,6 +25,13 @@ import {
 import { pageSwap, screenFade } from "@/lib/motion"
 
 const STAFF_PAGE_HASH = "#/staff-accounts"
+
+/**
+ * The Aevora splash is reserved for a successful sign-in: it replays after
+ * authentication and holds long enough for the emblem draw to read before the
+ * portal is revealed. Plain refreshes (login, register or app) never splash.
+ */
+const ENTRY_SPLASH_MS = 2600
 
 /**
  * Which portal this page load serves. The site is split by path so the two
@@ -42,6 +58,13 @@ export default function App() {
   const [page, setPage] = useState<Page>("Overview")
   const [hash, setHash] = useState(() => window.location.hash)
   const [mismatch, setMismatch] = useState<string | null>(null)
+  const [entrySplash, setEntrySplash] = useState(false)
+
+  // The static #boot layer in index.html covers the bundle download; the app
+  // has painted now, so drop it.
+  useEffect(() => {
+    document.getElementById("boot")?.remove()
+  }, [])
 
   useEffect(() => {
     void refreshSession()
@@ -74,6 +97,25 @@ export default function App() {
     void signOut().then(() => setMismatch(message))
   }, [wrongSide])
 
+  // Successful sign-in (either portal): replay the splash and only reveal the
+  // app once it has finished. A layout effect swaps in the splash before the
+  // portal can paint for a frame. Initial loads go loading → signedin, so an
+  // already-restored session does not splash twice.
+  const prevStatus = useRef(status)
+  useLayoutEffect(() => {
+    const previous = prevStatus.current
+    prevStatus.current = status
+    if (previous === "signedout" && status === "signedin" && !wrongSide) {
+      setEntrySplash(true)
+    }
+  }, [status, wrongSide])
+
+  useEffect(() => {
+    if (!entrySplash) return
+    const timer = window.setTimeout(() => setEntrySplash(false), ENTRY_SPLASH_MS)
+    return () => window.clearTimeout(timer)
+  }, [entrySplash])
+
   // Keep the address bar on the endpoint that matches the session: a
   // signed-out visit to an app URL lands on that side's login endpoint, and a
   // signed-in visit to a login endpoint lands on the app. replaceState only —
@@ -94,12 +136,13 @@ export default function App() {
   }, [page])
 
   // One key per top-level screen so AnimatePresence can cross-fade between
-  // the login wall, the client portal and the staff dashboard. While a
-  // role/portal mismatch is being signed out, keep the loading screen up so
-  // the wrong portal never renders.
-  const screen =
-    status === "loading" || wrongSide
-      ? "loading"
+  // the login wall, the client portal and the staff dashboard. The splash is
+  // only used for a fresh sign-in; while a session is being restored — or a
+  // wrong-portal account is being signed out — the matching skeleton is shown.
+  const screen = entrySplash
+    ? "loading"
+    : wrongSide || status === "loading"
+      ? "booting"
       : status === "signedout"
         ? `login-${side}`
         : side === "client"
@@ -113,7 +156,21 @@ export default function App() {
   let content: ReactNode
 
   if (screen === "loading") {
-    content = <PageFallback fullScreen />
+    content = <AevoraSplash />
+  } else if (screen === "booting") {
+    // Restoring an existing session (or signing out a wrong-portal account):
+    // stay on a skeleton of the destination, never replay the splash.
+    content = isLoginEndpoint ? (
+      <LoginSkeleton />
+    ) : side === "client" ? (
+      <div className="mx-auto min-h-svh w-full max-w-md bg-cream p-4">
+        <PageFallback />
+      </div>
+    ) : (
+      <div className="min-h-svh bg-cream p-6">
+        <PageFallback />
+      </div>
+    )
   } else if (screen === "login-admin" || screen === "login-client") {
     // Each portal has its own login screen at its own URL endpoint (/login
     // and /client/login; see App.tsx's path split above). Both stay in the
@@ -130,7 +187,13 @@ export default function App() {
   } else if (screen === "client") {
     // Client accounts see the mobile-first portal, not the staff dashboard.
     content = (
-      <Suspense fallback={<PageFallback fullScreen />}>
+      <Suspense
+        fallback={
+          <div className="mx-auto min-h-svh w-full max-w-md bg-cream p-4">
+            <PageFallback />
+          </div>
+        }
+      >
         <ClientApp />
       </Suspense>
     )
@@ -145,7 +208,7 @@ export default function App() {
   } else if (screen === "staff-accounts") {
     content = (
       <div className="min-h-svh bg-cream p-6">
-        <Suspense fallback={<PageFallback fullScreen />}>
+        <Suspense fallback={<PageFallback />}>
           <StaffAccountsPage
             onBack={() => {
               window.location.hash = ""

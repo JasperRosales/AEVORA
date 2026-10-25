@@ -54,13 +54,16 @@ export async function refreshSession() {
   } catch {
     // Token failed but a browser session exists — still let them in; the
     // server will refuse unauthorized API calls.
+    // Fall back to the role on the auth session itself, not a hard-coded
+    // "user": a client must not be treated as the wrong audience just because
+    // /me was temporarily unreachable.
     set({
       status: "signedin",
       user: {
         id: data.user.id,
         email: data.user.email ?? "",
         name: data.user.name ?? "",
-        role: "user",
+        role: (data.user as { role?: string }).role ?? "user",
       },
     })
   }

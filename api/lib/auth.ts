@@ -4,16 +4,26 @@ import type { Context, Next } from "hono"
 import { pool } from "./db"
 
 const API_KEY = process.env.API_KEY
-const AUTH_BASE = process.env.NEON_AUTH_BASE_URL
+const AUTH_BASE = process.env.NEON_AUTH_BASE_URL?.replace(/\/+$/, "") ?? null
+const AUTH_ORIGIN = AUTH_BASE ? new URL(AUTH_BASE).origin : null
 
 const jwks =
   AUTH_BASE && process.env.NEON_AUTH_JWKS_URL
     ? createRemoteJWKSet(new URL(process.env.NEON_AUTH_JWKS_URL))
     : null
 
-/** Issuer = origin of the auth base URL (no path). */
-export const authIssuer = AUTH_BASE ? new URL(AUTH_BASE).origin : null
-export const authBaseUrl = AUTH_BASE ?? null
+/**
+ * Neon Auth signs session JWTs (the ones the SPA sends) with `iss` set to the
+ * auth origin, while its anonymous-token endpoint uses the full base URL with
+ * the `/neondb/auth` path. Accept both — the signature is still verified
+ * against the branch JWKS, so this only widens the issuer claim check.
+ */
+export const authIssuer = AUTH_ORIGIN
+const authIssuers =
+  AUTH_ORIGIN && AUTH_BASE && AUTH_BASE !== AUTH_ORIGIN
+    ? [AUTH_ORIGIN, AUTH_BASE]
+    : AUTH_ORIGIN ?? undefined
+export const authBaseUrl = AUTH_BASE
 
 export interface Caller {
   id: string
@@ -38,7 +48,7 @@ async function identify(req: {
     const { payload } = await jwtVerify(
       token,
       jwks,
-      authIssuer ? { issuer: authIssuer } : undefined,
+      authIssuers ? { issuer: authIssuers } : undefined,
     )
     if (!payload.sub) return null
     const { rows } = await pool.query(

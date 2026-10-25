@@ -438,14 +438,6 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
             )}
           </AnimatePresence>
         </motion.div>
-        <motion.div variants={stagger} initial="hidden" animate="show" className="mt-4 space-y-1 px-1">
-          <motion.p variants={fadeUp} custom={0} className="text-[11px] text-cream/40">
-            Staff and admin accounts sign in at /login.
-          </motion.p>
-          <motion.p variants={fadeUp} custom={1} className="text-[11px] text-cream/40">
-            Batangas State University — The National Engineering University
-          </motion.p>
-        </motion.div>
       </div>
     </motion.div>
   )

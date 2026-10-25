@@ -168,3 +168,206 @@ thead th {
 tbody tr:nth-child(even) {
   background-color: rgba(6, 22, 51, 0.03);
 }
+
+/* ---------------------------------------------------------------------------
+   Aevora opening splash
+   ---------------------------------------------------------------------------
+   Sized with vmin so the emblem + wordmark always fit the shorter viewport
+   edge (tiny phones, short landscape windows) and stay capped on large
+   monitors. Animations are CSS-only and disabled for reduced-motion users.
+--------------------------------------------------------------------------- */
+.aevora-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding:
+    max(1.25rem, env(safe-area-inset-top))
+    max(1.25rem, env(safe-area-inset-right))
+    max(1.25rem, env(safe-area-inset-bottom))
+    max(1.25rem, env(safe-area-inset-left));
+  background: radial-gradient(
+    circle at center,
+    #0f1c3f 0%,
+    #0b172a 50%,
+    #0a1128 100%
+  );
+  font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
+  color: #e0f2fe;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.aevora-aura {
+  position: absolute;
+  width: min(68vmin, 26rem);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background: rgba(56, 189, 248, 0.1);
+  filter: blur(clamp(2.5rem, 11vmin, 6.25rem));
+  animation: aevora-aura-pulse 4s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+
+.aevora-lockup {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: aevora-breathe 4s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.aevora-emblem {
+  display: block;
+  width: clamp(7rem, 58vmin, 18rem);
+  height: auto;
+  filter: drop-shadow(0 0 clamp(8px, 2.5vmin, 22px) rgba(147, 197, 253, 0.35));
+}
+
+.aevora-wordmark {
+  margin-top: clamp(1rem, 3.6vmin, 1.9rem);
+  padding-left: 0.35em;
+  font-size: clamp(0.95rem, 3.4vmin, 1.5rem);
+  font-weight: 300;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.35em;
+  animation: aevora-word-glow 4s ease-in-out infinite alternate;
+}
+
+/* Emblem drawing: pathLength="1" on the SVG shapes makes 1 unit the whole
+   outline, so the dash animation is exact at every rendered size. */
+.aevora-orbit {
+  transform-box: view-box;
+  transform-origin: center;
+  animation: aevora-spin 30s linear infinite;
+}
+
+.aevora-draw-circle {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: aevora-draw-circle 4s cubic-bezier(0.4, 0, 0.2, 1) infinite
+    alternate;
+}
+
+.aevora-draw-petal {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: aevora-draw-petal 4s cubic-bezier(0.4, 0, 0.2, 1) infinite
+    alternate;
+}
+
+.aevora-petal-top {
+  animation-delay: 0.1s;
+}
+.aevora-petal-right {
+  animation-delay: 0.3s;
+}
+.aevora-petal-bottom {
+  animation-delay: 0.5s;
+}
+.aevora-petal-left {
+  animation-delay: 0.7s;
+}
+
+@keyframes aevora-breathe {
+  from {
+    transform: scale(0.97);
+  }
+  to {
+    transform: scale(1.02);
+  }
+}
+
+@keyframes aevora-aura-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes aevora-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aevora-draw-circle {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.95;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.8;
+  }
+}
+
+@keyframes aevora-draw-petal {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes aevora-word-glow {
+  from {
+    opacity: 0.75;
+    text-shadow: 0 0 10px rgba(186, 230, 253, 0.2);
+  }
+  to {
+    opacity: 1;
+    text-shadow: 0 0 20px rgba(186, 230, 253, 0.6);
+  }
+}
+
+/* Short landscape windows (phones on their side, split screens): keep the
+   lockup comfortably inside the viewport height. */
+@media (orientation: landscape) and (max-height: 26rem) {
+  .aevora-emblem {
+    width: clamp(6rem, 46vmin, 11rem);
+  }
+
+  .aevora-wordmark {
+    margin-top: 0.85rem;
+    font-size: clamp(0.8rem, 2.8vmin, 1.05rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aevora-lockup,
+  .aevora-aura,
+  .aevora-wordmark,
+  .aevora-orbit {
+    animation: none;
+  }
+
+  .aevora-aura {
+    opacity: 0.8;
+  }
+
+  .aevora-draw-circle,
+  .aevora-draw-petal {
+    animation: none;
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}

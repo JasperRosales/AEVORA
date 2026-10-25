@@ -229,28 +229,6 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
             </motion.button>
           </motion.div>
         </motion.form>
-
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="mt-4 space-y-1 px-1"
-        >
-          <motion.p
-            variants={fadeUp}
-            custom={0}
-            className="text-[11px] text-cream/40"
-          >
-            Family members sign in on the client portal at /client/login.
-          </motion.p>
-          <motion.p
-            variants={fadeUp}
-            custom={1}
-            className="text-[11px] text-cream/40"
-          >
-            Batangas State University — The National Engineering University
-          </motion.p>
-        </motion.div>
       </div>
     </motion.div>
   )

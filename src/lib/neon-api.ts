@@ -1,4 +1,4 @@
-import { getAuthToken } from "@/lib/auth"
+import { getAuthToken, isAuthConfigured } from "@/lib/auth"
 import type {
   Agreement,
   AppNotification,
@@ -28,11 +28,24 @@ export interface Attachment {
   url: string
 }
 
-/** Every call carries the user's Neon Auth JWT (falls back to the ops key). */
+/**
+ * Bearer value for API calls. With auth configured, fail closed instead of
+ * silently falling back to the ops key — that fallback authenticates the
+ * request as an admin and would mask a missing session token (which is how a
+ * client login could look like the wrong role).
+ */
+async function authHeader(): Promise<string> {
+  const token = await getAuthToken()
+  if (token) return `Bearer ${token}`
+  if (isAuthConfigured) throw new Error("Not authenticated")
+  if (!KEY) throw new Error("API key is not configured")
+  return `Bearer ${KEY}`
+}
+
+/** Every call carries the user's Neon Auth JWT (ops key only without auth). */
 export async function apiGet<T>(path: string): Promise<T> {
-  const token = (await getAuthToken()) ?? KEY
   const res = await fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: await authHeader() },
   })
   if (!res.ok) throw new Error(`GET ${path} → ${res.status}`)
   return (await res.json()) as T
@@ -95,10 +108,9 @@ export async function uploadAttachment(
 ): Promise<Attachment> {
   const form = new FormData()
   form.append("file", file)
-  const token = (await getAuthToken()) ?? KEY
   const res = await fetch(`${BASE}/reservations/${reservationId}/attachments`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: await authHeader() },
     body: form,
   })
   if (!res.ok) throw new Error(`upload → ${res.status}`)
@@ -120,11 +132,10 @@ async function apiSend<T>(
   path: string,
   body?: unknown
 ): Promise<T> {
-  const token = (await getAuthToken()) ?? KEY
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: await authHeader(),
       ...(body ? { "Content-Type": "application/json" } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
