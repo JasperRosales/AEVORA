@@ -37,8 +37,17 @@ The table paginates 12 rows per page (`usePagination`, `Pagination` component).
   [Overview](overview.md) page (`POST /plots`). The plot id and number are
   derived from cemetery + section + row + column (e.g. `A-101`), and duplicates
   are rejected with a 409.
+- **Bulk layout:** the [Cemetery Map](cemetery-map.md) page's **Build Plot
+  Grid** action creates a rectangular block of plots for a cemetery — multiple
+  sections, a rows × columns block, a starting cell, and a shared
+  type/size/price (`POST /plots/grid`). Existing cells are skipped, so grids can
+  be extended safely.
 - Plot status colors are shared with the map and badges via
   `src/lib/status.ts`, so the same status always looks the same across the app.
+- The mobile [client portal](client-portal.md) offers every `Available` plot in
+  this register as a buying catalogue and draws the same section grid on its
+  map; a reservation made there flips the plot to `Reserved` exactly like a
+  staff booking.
 
 ## Related
 

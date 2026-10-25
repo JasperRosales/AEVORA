@@ -4,6 +4,7 @@ import {
   CheckCircle,
   Clock,
   Home,
+  Plus,
   Search,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -16,6 +17,7 @@ import { fadeUp, pageSwap, stagger } from "@/lib/motion"
 import { plotStatusFill } from "@/lib/status"
 import type { BurialType, Plot, PlotStatus } from "@/types/domain"
 import { PlotDetailsCard } from "./plot-details-panel"
+import { PlotGridBuilderModal } from "./plot-grid-builder"
 import { PlotListView } from "./plot-list-view"
 import { PlotMapCard } from "./plot-map-canvas"
 
@@ -34,6 +36,20 @@ export function CemeteryMapPage() {
   const [search, setSearch] = useState("")
   const [selected, setSelected] = useState<Plot | null>(null)
   const [view, setView] = useState<"Map" | "List">("Map")
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  const sections = useMemo(
+    () =>
+      [
+        ...new Set(
+          plots
+            .filter((p) => p.cemeteryId === activeCemeteryId)
+            .map((p) => p.section)
+        ),
+      ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [activeCemeteryId, plots]
+  )
 
   const visiblePlots = useMemo(
     () =>
@@ -127,12 +143,32 @@ export function CemeteryMapPage() {
         ))}
       </motion.div>
 
+      {notice && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-start justify-between gap-3 rounded-xl bg-teal/20 px-4 py-3 text-sm text-deep"
+        >
+          <p>{notice}</p>
+          <button
+            onClick={() => setNotice(null)}
+            className="shrink-0 text-xs font-semibold underline-offset-2 hover:underline"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
+
       <motion.div variants={fadeUp}>
         <Card>
           <div className="flex flex-wrap items-center gap-3">
             <select
               value={activeCemeteryId}
-              onChange={(e) => setCemeteryId(e.target.value)}
+              onChange={(e) => {
+                setCemeteryId(e.target.value)
+                setSection("All")
+                setSelected(null)
+              }}
               className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
             >
               {cemeteries.map((c) => (
@@ -159,7 +195,7 @@ export function CemeteryMapPage() {
               className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
             >
               <option value="All">All Sections</option>
-              {["A", "B", "C", "D"].map((s) => (
+              {sections.map((s) => (
                 <option key={s} value={s}>
                   Section {s}
                 </option>
@@ -203,6 +239,12 @@ export function CemeteryMapPage() {
             </button>
             <button onClick={locate} className="neu-button px-3 py-1.5 text-sm">
               Locate
+            </button>
+            <button
+              onClick={() => setBuilderOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-cream transition hover:bg-deep"
+            >
+              <Plus size={14} /> Build Plot Grid
             </button>
             <div className="ml-auto flex overflow-hidden rounded-lg border border-deep/30">
               {(["Map", "List"] as const).map((v) => (
@@ -256,6 +298,7 @@ export function CemeteryMapPage() {
               status={status}
               selected={selected}
               onSelect={setSelected}
+              onBuildGrid={() => setBuilderOpen(true)}
             />
           </motion.div>
         ) : (
@@ -270,6 +313,21 @@ export function CemeteryMapPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {builderOpen && (
+        <PlotGridBuilderModal
+          cemeteryId={activeCemeteryId}
+          onClose={() => setBuilderOpen(false)}
+          onCreated={(message) => {
+            setNotice(message)
+            // Clear filters so the new block is fully visible on the map.
+            setSection("All")
+            setStatus("All")
+            setBurialType("All")
+            setSearch("")
+          }}
+        />
+      )}
     </motion.div>
   )
 }

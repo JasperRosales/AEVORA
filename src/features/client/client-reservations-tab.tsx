@@ -1,4 +1,5 @@
 import {
+  CreditCard,
   Download,
   FileText,
   MapPin,
@@ -10,14 +11,23 @@ import { useRef, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { reloadClientData, useClientData } from "@/data/client-store"
+import type { ClientReservation } from "@/lib/client-api"
 import { EASE_OUT, stagger } from "@/lib/motion"
 import { deleteAttachment, uploadAttachment } from "@/lib/neon-api"
-import { Card, ErrorNote, fileSize, Spinner } from "./client-ui"
+import { balanceFor, PaymentSheet } from "./client-payment-sheet"
+import { Card, ErrorNote, fileSize, pesos, Spinner } from "./client-ui"
 
 /** Reservations list; tapping a card expands its document manager. */
-export function ReservationsTab() {
-  const { status, reservations, error } = useClientData()
+export function ReservationsTab({
+  onBrowsePlots,
+  onOpenPayments,
+}: {
+  onBrowsePlots: () => void
+  onOpenPayments: () => void
+}) {
+  const { status, reservations, payments, error } = useClientData()
   const [openId, setOpenId] = useState<string | null>(null)
+  const [paying, setPaying] = useState<ClientReservation | null>(null)
 
   if (status === "loading" || status === "idle") return <Spinner />
   if (status === "error")
@@ -30,6 +40,12 @@ export function ReservationsTab() {
           <p className="text-sm text-deep/70">
             You have no reservations on record yet.
           </p>
+          <button
+            onClick={onBrowsePlots}
+            className="mt-2 text-xs font-semibold text-navy underline-offset-2 hover:underline"
+          >
+            Find an available plot
+          </button>
         </Card>
       </motion.div>
     )
@@ -42,41 +58,70 @@ export function ReservationsTab() {
       animate="show"
       className="space-y-3"
     >
-      {reservations.map((r) => (
-        <Card key={r.id}>
-          <button
-            onClick={() => setOpenId(openId === r.id ? null : r.id)}
-            className="w-full text-left"
-          >
-            <div className="flex items-center justify-between gap-2">
-              <p className="font-semibold">{r.reservation_number}</p>
-              <StatusBadge status={r.status} />
+      {reservations.map((r) => {
+        const balance = balanceFor(r, payments)
+        const canPay = balance > 0 && r.status !== "Cancelled"
+        return (
+          <Card key={r.id}>
+            <button
+              onClick={() => setOpenId(openId === r.id ? null : r.id)}
+              className="w-full text-left"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold">{r.reservation_number}</p>
+                <StatusBadge status={r.status} />
+              </div>
+              <p className="mt-1 text-sm">
+                Plot <span className="font-medium">{r.plot_number}</span> ·{" "}
+                {r.burial_type}
+              </p>
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-deep/60">
+                <MapPin size={12} /> {r.cemetery} — {r.location}
+              </p>
+              <p className="mt-0.5 text-xs text-deep/60">Scheduled {r.date}</p>
+            </button>
+
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-deep/10 pt-3">
+              <div>
+                <p className="text-[11px] text-deep/60">
+                  {canPay ? "Balance due" : "Plot balance"}
+                </p>
+                <p
+                  className={`text-sm font-semibold ${
+                    canPay ? "text-navy" : "text-deep/60"
+                  }`}
+                >
+                  {canPay ? pesos(balance) : "Settled"}
+                </p>
+              </div>
+              {canPay && (
+                <motion.button
+                  onClick={() => setPaying(r)}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center gap-1.5 rounded-xl bg-navy px-3.5 py-2 text-xs font-semibold text-cream transition active:bg-deep"
+                >
+                  <CreditCard size={14} /> Pay now
+                </motion.button>
+              )}
             </div>
-            <p className="mt-1 text-sm">
-              Plot <span className="font-medium">{r.plot_number}</span> ·{" "}
-              {r.burial_type}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1 text-xs text-deep/60">
-              <MapPin size={12} /> {r.cemetery} — {r.location}
-            </p>
-            <p className="mt-0.5 text-xs text-deep/60">Scheduled {r.date}</p>
-          </button>
-          <AnimatePresence initial={false}>
-            {openId === r.id && (
-              <motion.div
-                key="files"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.26, ease: EASE_OUT }}
-                className="overflow-hidden"
-              >
-                <ReservationFiles reservationId={r.id} files={r.files} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Card>
-      ))}
+
+            <AnimatePresence initial={false}>
+              {openId === r.id && (
+                <motion.div
+                  key="files"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.26, ease: EASE_OUT }}
+                  className="overflow-hidden"
+                >
+                  <ReservationFiles reservationId={r.id} files={r.files} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </Card>
+        )
+      })}
       <motion.button
         onClick={() => reloadClientData()}
         whileTap={{ scale: 0.98 }}
@@ -84,6 +129,14 @@ export function ReservationsTab() {
       >
         <RefreshCw size={13} /> Refresh
       </motion.button>
+
+      {paying && (
+        <PaymentSheet
+          reservation={paying}
+          onClose={() => setPaying(null)}
+          onViewPayments={onOpenPayments}
+        />
+      )}
     </motion.div>
   )
 }

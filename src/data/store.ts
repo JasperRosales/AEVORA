@@ -145,6 +145,14 @@ export function insertPlot(row: Plot) {
   set({ plots: [...state.plots, row] })
 }
 
+/** Appends a batch created by the plot grid builder, ignoring duplicates. */
+export function insertPlots(rows: Plot[]) {
+  const known = new Set(state.plots.map((p) => p.id))
+  const fresh = rows.filter((row) => !known.has(row.id))
+  if (fresh.length === 0) return
+  set({ plots: [...state.plots, ...fresh] })
+}
+
 /** Appends a payment recorded through the Record Payment quick action. */
 export function insertPayment(row: Payment) {
   set({ payments: [...state.payments, row] })
@@ -213,9 +221,7 @@ export function removeReservation(result: {
 }) {
   set({
     reservations: state.reservations.filter((r) => r.id !== result.id),
-    ...(result.plot
-      ? { plots: replace(state.plots, result.plot) }
-      : {}),
+    ...(result.plot ? { plots: replace(state.plots, result.plot) } : {}),
     ...(result.client
       ? { clients: replace(state.clients, result.client) }
       : {}),

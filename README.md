@@ -4,8 +4,9 @@ Aevora is a full-stack cemetery management app built on Neon:
 
 - **Staff dashboard** (desktop) — Overview, Cemetery Map, Plots, Reservations,
   Clients, Payments, Agreements, and Reports.
-- **Client portal** (mobile-first) — families sign in to follow their
-  reservations, payments, and documents.
+- **Client portal** (mobile-first) — families browse the plot map (or a list of
+  available plots), reserve one, pay (or upload proof), and follow their
+  reservations and documents.
 
 The frontend is a React 19 + TypeScript + Vite SPA styled with Tailwind CSS v4.
 The backend is a Hono API deployed as a **Neon Function** next to a Lakebase
@@ -14,7 +15,9 @@ reservation documents.
 
 Dashboard quick actions have full functionality: Add Client, Add Plot, Create
 Reservation, Record Payment, and Generate Report POST to the API function, and
-the view actions navigate straight to the matching screen.
+the view actions navigate straight to the matching screen. The Cemetery Map
+also has a **Build Plot Grid** builder for laying out a whole block of plots
+(multiple sections, rows × columns, start cell, shared type/size/price).
 
 ## Getting started
 
@@ -67,7 +70,7 @@ Full documentation lives in [`docs/`](docs/README.md).
 - [Overview](docs/pages/overview.md) — dashboard home: KPIs, occupancy,
   working quick actions, summaries, and feeds
 - [Cemetery Map](docs/pages/cemetery-map.md) — interactive SVG plot map with
-  filters, zoom, and a details panel
+  filters, zoom, a details panel, and a bulk grid builder
 - [Plots](docs/pages/plots.md) — searchable, paginated plot register
 - [Reservations](docs/pages/reservations.md) — reservation tracking and
   document attachments
@@ -81,8 +84,9 @@ Full documentation lives in [`docs/`](docs/README.md).
 
 ### Client Portal
 
-- [Client Portal](docs/pages/client-portal.md) — the mobile-first app:
-  Home, Reservations (with document upload/download), Payments, and Profile
+- [Client Portal](docs/pages/client-portal.md) — the mobile-first app: Home,
+  Plots (map + list with reservation), Reservations (with document
+  upload/download), Payments, and Profile
 
 ### Administration
 

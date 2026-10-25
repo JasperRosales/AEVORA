@@ -3,19 +3,19 @@
 Aevora is a cemetery management system with two faces:
 
 - **Staff dashboard** — a desktop web app for admins and staff (overview, map, plots, reservations, clients, payments, agreements, reports).
-- **Client portal** — a mobile-first web app for families with a reservation (home, reservations, payments, profile).
+- **Client portal** — a mobile-first web app for families buying and holding plots (browse available plots, reserve, pay, and follow reservations and payments).
 
 Both live in one React SPA; the signed-in user's **role** decides which one loads.
 
 ## Tech stack
 
-| Layer     | Technology                                                             |
-| --------- | ---------------------------------------------------------------------- |
-| Frontend  | React 19 + TypeScript + Vite + Tailwind CSS v4 (custom `navy`/`cream`/`teal` palette) |
-| Backend   | Hono API deployed as a **Neon Function** (`api/index.ts`)               |
-| Database  | Neon (Lakebase Postgres), accessed via `pg` and Drizzle schema          |
-| Storage   | Neon Object Storage (S3-compatible, `assets` bucket) for attachments   |
-| Auth      | Neon Auth (Managed Better Auth) — JWTs verified server-side via JWKS    |
+| Layer    | Technology                                                                            |
+| -------- | ------------------------------------------------------------------------------------- |
+| Frontend | React 19 + TypeScript + Vite + Tailwind CSS v4 (custom `navy`/`cream`/`teal` palette) |
+| Backend  | Hono API deployed as a **Neon Function** (`api/index.ts`)                             |
+| Database | Neon (Lakebase Postgres), accessed via `pg` and Drizzle schema                        |
+| Storage  | Neon Object Storage (S3-compatible, `assets` bucket) for attachments                  |
+| Auth     | Neon Auth (Managed Better Auth) — JWTs verified server-side via JWKS                  |
 
 ## Prerequisites
 
@@ -26,18 +26,18 @@ Both live in one React SPA; the signed-in user's **role** decides which one load
 
 The frontend reads `VITE_*` variables, the API function reads the rest. They are typically synced into `.env.local` by the Neon CLI:
 
-| Variable                     | Used by      | Purpose                                        |
-| ---------------------------- | ------------ | ---------------------------------------------- |
-| `VITE_NEON_API_URL`          | SPA          | Base URL of the deployed API function          |
-| `VITE_NEON_API_KEY`          | SPA          | Ops fallback key (also used by scripts/tests)  |
-| `VITE_NEON_AUTH_URL`         | SPA          | Neon Auth base URL for the login client        |
-| `DATABASE_URL`               | API + seed   | Postgres connection (pooled)                   |
-| `DATABASE_URL_UNPOOLED`      | API + seed   | Direct Postgres connection                     |
-| `API_KEY`                    | API function | Shared secret checked on every data route      |
-| `NEON_AUTH_BASE_URL`         | API function | Auth server (sign-up, issuer)                  |
-| `NEON_AUTH_JWKS_URL`         | API function | JWT verification key set                       |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_ENDPOINT_URL_S3` / `AWS_REGION` | API function | Neon Object Storage access |
-| `NEON_BRANCH`                | API function | Branch name (surfaced by `/health`)            |
+| Variable                                                                             | Used by      | Purpose                                       |
+| ------------------------------------------------------------------------------------ | ------------ | --------------------------------------------- |
+| `VITE_NEON_API_URL`                                                                  | SPA          | Base URL of the deployed API function         |
+| `VITE_NEON_API_KEY`                                                                  | SPA          | Ops fallback key (also used by scripts/tests) |
+| `VITE_NEON_AUTH_URL`                                                                 | SPA          | Neon Auth base URL for the login client       |
+| `DATABASE_URL`                                                                       | API + seed   | Postgres connection (pooled)                  |
+| `DATABASE_URL_UNPOOLED`                                                              | API + seed   | Direct Postgres connection                    |
+| `API_KEY`                                                                            | API function | Shared secret checked on every data route     |
+| `NEON_AUTH_BASE_URL`                                                                 | API function | Auth server (sign-up, issuer)                 |
+| `NEON_AUTH_JWKS_URL`                                                                 | API function | JWT verification key set                      |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_ENDPOINT_URL_S3` / `AWS_REGION` | API function | Neon Object Storage access                    |
+| `NEON_BRANCH`                                                                        | API function | Branch name (surfaced by `/health`)           |
 
 If `VITE_NEON_API_URL` or `VITE_NEON_AUTH_URL` are missing, the app degrades gracefully: the data store stays empty and the login screen reports that auth is not configured.
 
@@ -105,10 +105,10 @@ api/                     Hono API (Neon Function, deployed next to the DB)
 Key behaviours:
 
 - **Role routing** (`src/App.tsx`): `client` role → mobile portal; everyone else → staff dashboard. The staff dashboard's "all records" fetch only runs for staff/admin.
-- **Server-side scoping**: the client portal endpoints (`api/routes/client-routes.ts`) match the caller's auth email to their `clients` row — the UI never decides what a client may see.
+- **Server-side scoping**: the client portal endpoints (`api/routes/client-routes.ts`) match the caller's auth email to their `clients` row — the UI never decides what a client may see, reserve or pay for. Portal writes (`POST /client/reservations`, `POST /client/payments`) take the owner from the session, lock the plot while booking, and file payments as Pending for staff to confirm.
 - **Route code splitting** (`src/features/lazy-routes.ts`): each sidebar page is a separate lazy chunk, warmed on sidebar hover/focus. The shell passes `onNavigate`/`onPrefetch` down to each screen (`DashboardProps`) so in-page shortcuts — like the Overview quick actions — can switch pages and warm the target chunk.
 - **Auth**: every API call carries a short-lived Neon Auth JWT (15 min, cached in `src/lib/auth.ts`) or the ops `API_KEY`.
-- **Writes**: staff create records through `staffGuard`-protected POST routes in `api/routes/staff-data-routes.ts` (`/clients`, `/plots`, `/reservations`, `/payments`, `/reports`), reachable from the Overview quick actions.
+- **Writes**: staff create records through `staffGuard`-protected POST routes in `api/routes/staff-data-routes.ts` (`/clients`, `/plots`, `/reservations`, `/payments`, `/reports`), reachable from the Overview quick actions. Families reserve and pay from the mobile portal through their own scoped routes (`/client/reservations`, `/client/payments`).
 
 Continue to the [Table of Contents](README.md) to read the per-page guides.
 
@@ -118,8 +118,24 @@ The API function is deployed separately from the SPA. After changing anything
 under `api/`, apply it to the branch with the Neon CLI:
 
 ```bash
-neon deploy --project-id <project-id>   # or: neon deploy (from a linked dir)
+neon deploy --env .env.local --no-env-pull   # or: neon deploy (from a linked dir)
 ```
 
 The SPA can be built/deployed independently (`npm run build`); the quick-action
 forms call the same `VITE_NEON_API_URL` the rest of the dashboard uses.
+
+> **Symptom of a stale function:** the client portal fails to load with
+> `GET /client/plots → 404` (or any newly added route returning 404) right after
+> a frontend update. The SPA is newer than the deployed API — run `neon deploy`
+> and reload. `/client/*` paths still answer `401` when unauthenticated because
+> the route guard runs before the 404 fallback, so test with the ops key or a
+> signed-in session to tell "missing route" from "not signed in".
+>
+> If a newly added route **still** 404s after `neon deploy` reports the function
+> as applied, the CLI reused a stale bundle. Force a targeted redeploy of the
+> function from the working tree:
+>
+> ```bash
+> set -a; source .env.local; set +a
+> neon functions deploy api --src api/index.ts --env "API_KEY=$API_KEY"
+> ```

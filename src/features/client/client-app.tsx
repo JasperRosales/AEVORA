@@ -1,4 +1,11 @@
-import { ClipboardList, CreditCard, Home, LogOut, User } from "lucide-react"
+import {
+  ClipboardList,
+  CreditCard,
+  Home,
+  LogOut,
+  MapPin,
+  User,
+} from "lucide-react"
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { signOut, useSession } from "@/data/session"
@@ -6,6 +13,7 @@ import { ensureClientDataLoaded } from "@/data/client-store"
 import { EASE_OUT, layoutSpring } from "@/lib/motion"
 import { HomeTab } from "./client-home-tab"
 import { PaymentsTab } from "./client-payments-tab"
+import { PlotsTab } from "./client-plots-tab"
 import { ProfileTab } from "./client-profile-tab"
 import { ReservationsTab } from "./client-reservations-tab"
 
@@ -15,10 +23,11 @@ import { ReservationsTab } from "./client-reservations-tab"
  * staff dashboard (see App.tsx). Designed phone-first: single column, bottom
  * tab bar, 44px touch targets; centered max-w-md column on desktop.
  */
-type Tab = "home" | "reservations" | "payments" | "profile"
+type Tab = "home" | "plots" | "reservations" | "payments" | "profile"
 
 const TABS: { id: Tab; label: string; icon: typeof Home }[] = [
   { id: "home", label: "Home", icon: Home },
+  { id: "plots", label: "Plots", icon: MapPin },
   { id: "reservations", label: "Reservations", icon: ClipboardList },
   { id: "payments", label: "Payments", icon: CreditCard },
   { id: "profile", label: "Profile", icon: User },
@@ -95,10 +104,28 @@ export function ClientApp() {
             transition={{ duration: 0.22, ease: EASE_OUT }}
           >
             {tab === "home" && (
-              <HomeTab onOpenReservations={() => selectTab("reservations")} />
+              <HomeTab
+                onBrowsePlots={() => selectTab("plots")}
+                onOpenReservations={() => selectTab("reservations")}
+              />
             )}
-            {tab === "reservations" && <ReservationsTab />}
-            {tab === "payments" && <PaymentsTab />}
+            {tab === "plots" && (
+              <PlotsTab
+                onOpenReservations={() => selectTab("reservations")}
+                onOpenPayments={() => selectTab("payments")}
+              />
+            )}
+            {tab === "reservations" && (
+              <ReservationsTab
+                onBrowsePlots={() => selectTab("plots")}
+                onOpenPayments={() => selectTab("payments")}
+              />
+            )}
+            {tab === "payments" && (
+              <PaymentsTab
+                onOpenReservations={() => selectTab("reservations")}
+              />
+            )}
             {tab === "profile" && <ProfileTab />}
           </motion.div>
         </AnimatePresence>
@@ -109,7 +136,7 @@ export function ClientApp() {
         className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md border-t border-deep/10 bg-white/95 backdrop-blur"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="grid grid-cols-4">
+        <div className="grid grid-cols-5">
           {TABS.map(({ id, label, icon: Icon }) => {
             const isActive = tab === id
             return (
@@ -118,7 +145,7 @@ export function ClientApp() {
                 onClick={() => selectTab(id)}
                 aria-current={isActive}
                 whileTap={{ scale: 0.94 }}
-                className={`relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[11px] font-medium transition-colors ${
+                className={`relative flex min-h-[56px] flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
                   isActive ? "text-navy" : "text-deep/50"
                 }`}
               >
@@ -126,7 +153,7 @@ export function ClientApp() {
                   <motion.span
                     layoutId="client-tab-indicator"
                     transition={layoutSpring}
-                    className="absolute inset-x-3 inset-y-1.5 rounded-xl bg-navy/5"
+                    className="absolute inset-x-2 inset-y-1.5 rounded-xl bg-navy/5"
                   />
                 )}
                 <motion.span
@@ -134,7 +161,7 @@ export function ClientApp() {
                   animate={{ y: isActive ? -1 : 0 }}
                   transition={{ duration: 0.2, ease: EASE_OUT }}
                 >
-                  <Icon size={20} strokeWidth={isActive ? 2.4 : 1.8} />
+                  <Icon size={18} strokeWidth={isActive ? 2.4 : 1.8} />
                   {label}
                 </motion.span>
               </motion.button>

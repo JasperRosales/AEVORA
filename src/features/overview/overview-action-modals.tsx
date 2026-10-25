@@ -129,8 +129,8 @@ function AddClientForm({ onCreated, onClose }: FormProps) {
     return (
       <div className="space-y-3">
         <p className="rounded-lg bg-teal/10 px-3 py-2 text-sm text-deep">
-          Client <strong>{fullName}</strong> was added, and their portal
-          account was created automatically.
+          Client <strong>{fullName}</strong> was added, and their portal account
+          was created automatically.
         </p>
         {portal.tempPassword ? (
           <>
@@ -491,7 +491,7 @@ export function AddPlotModal({ open, onClose, onCreated }: ActionModalProps) {
       open={open}
       onClose={onClose}
       title="Add Plot"
-      description="Add a plot to a cemetery section. The plot number is derived from section, row and column."
+      description="Add a plot to a cemetery section. The plot number is derived from section, row and column. For a whole block, use Build Plot Grid on the Cemetery Map."
     >
       <AddPlotForm onCreated={onCreated} onClose={onClose} />
     </Modal>

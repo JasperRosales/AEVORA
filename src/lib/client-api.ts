@@ -1,9 +1,10 @@
-import { apiGet } from "@/lib/neon-api"
+import { apiGet, apiSend } from "@/lib/neon-api"
+import type { BurialType, PlotStatus } from "@/types/domain"
 
 /**
  * Client-portal API. Every endpoint is scoped server-side to the signed-in
  * client (auth email → `clients` row), so these fetchers never take an owner
- * parameter — the server decides what you are allowed to see.
+ * parameter — the server decides what you are allowed to see or buy.
  */
 
 export interface ClientProfile {
@@ -34,6 +35,22 @@ export interface ClientSummary {
   } | null
 }
 
+/** A plot on the portal map/catalogue (owner details are never sent). */
+export interface ClientPlot {
+  id: string
+  plot_number: string
+  cemetery_id: string
+  section: string
+  row: number
+  column: number
+  type: BurialType
+  size: string
+  price: number
+  status: PlotStatus
+  cemetery: string
+  location: string
+}
+
 export interface ClientReservation {
   id: string
   reservation_number: string
@@ -44,6 +61,8 @@ export interface ClientReservation {
   verification: string
   cemetery: string
   location: string
+  /** Plot price, so the portal can show the balance still owed. */
+  price: number
   files: {
     id: string
     filename: string
@@ -74,8 +93,29 @@ export interface ClientAgreement {
   cemetery: string
 }
 
+export const PAYMENT_TYPES = [
+  "Reservation Fee",
+  "Down Payment",
+  "Installment",
+  "Full Payment",
+] as const
+
+export const PAYMENT_METHODS = [
+  "Online",
+  "Card",
+  "Bank Transfer",
+  "Cash",
+] as const
+
+export const BURIAL_TYPES = ["Private", "Vertical", "Public"] as const
+
 export function fetchClientSummary(): Promise<ClientSummary> {
   return apiGet<ClientSummary>("/client/summary")
+}
+
+/** Every plot with its status, for the map (the list filters to Available). */
+export function fetchClientPlots(): Promise<ClientPlot[]> {
+  return apiGet<ClientPlot[]>("/client/plots?scope=all")
 }
 
 export function fetchClientReservations(): Promise<ClientReservation[]> {
@@ -88,4 +128,27 @@ export function fetchClientPayments(): Promise<ClientPayment[]> {
 
 export function fetchClientAgreements(): Promise<ClientAgreement[]> {
   return apiGet<ClientAgreement[]>("/client/agreements")
+}
+
+/** Books an Available plot for the signed-in family (server-side ownership). */
+export function createClientReservation(input: {
+  plotId: string
+  date: string
+  burialType: (typeof BURIAL_TYPES)[number]
+}): Promise<ClientReservation> {
+  return apiSend<ClientReservation>("POST", "/client/reservations", input)
+}
+
+/**
+ * Submits a payment against one of the family's reservations. The server files
+ * it as Pending until the office confirms the money arrived.
+ */
+export function createClientPayment(input: {
+  reservationId: string
+  type: (typeof PAYMENT_TYPES)[number]
+  amount: number
+  method: (typeof PAYMENT_METHODS)[number]
+  date: string
+}): Promise<ClientPayment> {
+  return apiSend<ClientPayment>("POST", "/client/payments", input)
 }

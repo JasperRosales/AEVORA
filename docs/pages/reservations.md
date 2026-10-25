@@ -55,3 +55,8 @@ plot books it (status → `Reserved`, `reservedFor` set), increments the client'
 reservation count, and creates the reservation as `Pending` /
 `Waiting for Checking`. **Review Information Checking** on the Overview also
 lands here.
+
+Families can book an available plot themselves from the mobile
+[client portal](client-portal.md) (`POST /client/reservations`). Those
+bookings arrive in the same state, with the owner taken from the signed-in
+account instead of a client picker, and await the same verification here.

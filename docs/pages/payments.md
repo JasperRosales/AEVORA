@@ -43,3 +43,6 @@ the revenue charts on [Reports](reports.md).
 New transactions are logged with the **Record Payment** quick action on the
 [Overview](overview.md) page (`POST /payments`); the server assigns the next
 `OR-##` receipt number and copies the cemetery from the selected plot.
+Families can also submit payments from the [client portal](client-portal.md)
+(`POST /client/payments`); those arrive as `Pending` until staff confirm the
+money was received.

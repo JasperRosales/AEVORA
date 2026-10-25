@@ -127,7 +127,7 @@ export interface StaffUser {
   createdAt: string
 }
 
-async function apiSend<T>(
+export async function apiSend<T>(
   method: "POST" | "PATCH" | "DELETE",
   path: string,
   body?: unknown
@@ -230,6 +230,27 @@ export function createClient(
 
 export function createPlot(input: NewPlot): Promise<Plot> {
   return apiSend<Plot>("POST", "/plots", input)
+}
+
+/** Rectangular block of plots for one cemetery (the grid builder). */
+export interface NewPlotGrid {
+  cemeteryId: string
+  sections: string[]
+  rows: number
+  columns: number
+  startRow: number
+  startColumn: number
+  type: Plot["type"]
+  size: string
+  price: number
+  status: Plot["status"]
+}
+
+/** Creates every missing cell in a grid; existing plots are reported as skipped. */
+export function createPlotGrid(
+  input: NewPlotGrid
+): Promise<{ created: Plot[]; skipped: number }> {
+  return apiSend("POST", "/plots/grid", input)
 }
 
 /** Booking the plot server-side; returns the row plus the records it touched. */

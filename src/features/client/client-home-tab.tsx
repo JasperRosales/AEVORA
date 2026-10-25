@@ -1,4 +1,4 @@
-import { BadgeCheck } from "lucide-react"
+import { BadgeCheck, ClipboardList, MapPin } from "lucide-react"
 import { motion } from "motion/react"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { useClientData } from "@/data/client-store"
@@ -7,8 +7,10 @@ import { Card, ErrorNote, pesos, Spinner } from "./client-ui"
 
 /** Portal landing tab: greeting, headline totals and the next reservation. */
 export function HomeTab({
+  onBrowsePlots,
   onOpenReservations,
 }: {
+  onBrowsePlots: () => void
   onOpenReservations: () => void
 }) {
   const { status, summary, error } = useClientData()
@@ -72,15 +74,24 @@ export function HomeTab({
         )}
       </Card>
 
-      <motion.button
-        variants={staggerItem}
-        onClick={onOpenReservations}
-        whileHover={{ y: -1 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full rounded-xl bg-navy py-3 text-sm font-semibold text-cream transition active:bg-deep"
-      >
-        View my reservations
-      </motion.button>
+      <motion.div variants={staggerItem} className="grid grid-cols-2 gap-2">
+        <motion.button
+          onClick={onBrowsePlots}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center justify-center gap-1.5 rounded-xl bg-navy py-3 text-sm font-semibold text-cream transition active:bg-deep"
+        >
+          <MapPin size={15} /> Find a plot
+        </motion.button>
+        <motion.button
+          onClick={onOpenReservations}
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-deep/20 bg-white py-3 text-sm font-semibold text-deep transition active:bg-cream"
+        >
+          <ClipboardList size={15} /> Reservations
+        </motion.button>
+      </motion.div>
     </motion.div>
   )
 }

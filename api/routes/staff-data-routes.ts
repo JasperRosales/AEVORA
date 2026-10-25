@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm"
 import { Hono } from "hono"
 import { provisionClientAccount, staffGuard, type AppEnv } from "../lib/auth"
 import { db, pool } from "../lib/db"
+import { isDate, nextCode, oneOf, str, today } from "../lib/records"
 import * as schema from "../db/schema"
 
 /**
@@ -228,6 +229,137 @@ routes.post("/plots", staffGuard, async (c) => {
     .returning()
 
   return c.json(toPlot(inserted), 201)
+})
+
+/**
+ * Bulk layout builder: lays out a rectangular block of plots for one cemetery.
+ * The admin picks one or more sections, a rows × columns block and a starting
+ * cell, and every generated plot shares the same type/size/price. Existing
+ * plot ids are skipped instead of failing the whole request, so a grid can be
+ * extended or re-run safely. One request is capped at 500 plots.
+ */
+routes.post("/plots/grid", staffGuard, async (c) => {
+  const body = await c.req.json<Record<string, unknown>>()
+  const cemeteryId = str(body.cemeteryId)
+  const rawSections = Array.isArray(body.sections)
+    ? body.sections
+    : str(body.sections).split(",")
+  const sections = [
+    ...new Set(
+      rawSections.map((s) => String(s).trim().toUpperCase()).filter(Boolean)
+    ),
+  ]
+  const rows = Number(body.rows)
+  const columns = Number(body.columns)
+  const startRow = Number(body.startRow ?? 1)
+  const startColumn = Number(body.startColumn ?? 1)
+  const size = str(body.size)
+  const price = Number(body.price)
+
+  if (!cemeteryId || !size) {
+    return c.json({ error: "Cemetery and plot size are required" }, 400)
+  }
+  if (sections.length === 0) {
+    return c.json({ error: "Add at least one section" }, 400)
+  }
+  if (
+    sections.length > 12 ||
+    sections.some((section) => !/^[A-Z0-9]{1,3}$/.test(section))
+  ) {
+    return c.json(
+      { error: "Sections must be 1–3 letters/numbers (up to 12 per grid)" },
+      400
+    )
+  }
+  if (
+    !Number.isInteger(rows) ||
+    rows < 1 ||
+    rows > 50 ||
+    !Number.isInteger(columns) ||
+    columns < 1 ||
+    columns > 50
+  ) {
+    return c.json({ error: "Rows and columns must be between 1 and 50" }, 400)
+  }
+  if (
+    !Number.isInteger(startRow) ||
+    startRow < 1 ||
+    !Number.isInteger(startColumn) ||
+    startColumn < 1
+  ) {
+    return c.json({ error: "Start row and column must be 1 or more" }, 400)
+  }
+  // Plot numbers pad the column to two digits (A-101); past 99 the number
+  // becomes ambiguous, so keep generated columns inside that range.
+  if (startColumn + columns - 1 > 99) {
+    return c.json({ error: "Columns must end at 99 or less" }, 400)
+  }
+  if (!Number.isFinite(price) || price < 0) {
+    return c.json({ error: "Price must be a positive amount" }, 400)
+  }
+
+  const total = sections.length * rows * columns
+  if (total > 500) {
+    return c.json(
+      { error: `That grid is ${total} plots — the limit is 500 per request` },
+      400
+    )
+  }
+
+  const [cemetery] = await db
+    .select()
+    .from(schema.cemeteries)
+    .where(eq(schema.cemeteries.id, cemeteryId))
+  if (!cemetery) return c.json({ error: "Unknown cemetery" }, 404)
+
+  const type = oneOf(body.type, BURIAL_TYPES, "Private")
+  const status = oneOf(body.status, PLOT_STATUSES, "Available")
+  const roundedPrice = Math.round(price)
+
+  // Same identity/number scheme as the single Add Plot action, so a grid
+  // extension lines up with rows created one at a time.
+  const values = sections.flatMap((section) =>
+    Array.from({ length: rows }).flatMap((_, r) =>
+      Array.from({ length: columns }).map((_, col) => {
+        const row = startRow + r
+        const column = startColumn + col
+        return {
+          id: `${cemeteryId}-${section}-${row}-${column}`,
+          plotNumber: `${section}-${row}${String(column).padStart(2, "0")}`,
+          cemeteryId,
+          section,
+          row,
+          column,
+          type,
+          size,
+          price: roundedPrice,
+          status,
+          reservedFor: null,
+        }
+      })
+    )
+  )
+
+  if (values.length === 0) {
+    return c.json({ created: [], skipped: 0 }, 201)
+  }
+
+  // `onConflictDoNothing` handles the race where another admin creates the
+  // same cell between this read and the insert; `returning` reports only the
+  // rows this request actually added.
+  const inserted = await db
+    .insert(schema.plots)
+    .values(values)
+    .onConflictDoNothing()
+    .returning()
+
+  return c.json(
+    {
+      created: inserted.map(toPlot),
+      skipped: values.length - inserted.length,
+    },
+    201
+  )
 })
 
 routes.post("/reservations", staffGuard, async (c) => {
@@ -458,7 +590,9 @@ routes.delete("/clients/:id", staffGuard, async (c) => {
     await pool.query('delete from neon_auth."account" where "userId" = $1', [
       users[0].id,
     ])
-    await pool.query('delete from neon_auth."user" where id = $1', [users[0].id])
+    await pool.query('delete from neon_auth."user" where id = $1', [
+      users[0].id,
+    ])
   }
 
   return c.json({ ok: true })
@@ -710,37 +844,6 @@ routes.delete("/reports/:id", staffGuard, async (c) => {
 })
 
 /* --------------------------------- helpers --------------------------------- */
-
-/** Trimmed string out of an untyped request body ("" when absent). */
-function str(value: unknown): string {
-  return typeof value === "string" ? value.trim() : ""
-}
-
-/** First allowed literal in `value`, otherwise `fallback`. */
-function oneOf<T extends string>(
-  value: unknown,
-  allowed: readonly T[],
-  fallback: T
-): T {
-  return allowed.includes(value as T) ? (value as T) : fallback
-}
-
-function isDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value)
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-/** Next number in codes like "CL-007" / "R-12" / "OR-03" (trailing digits). */
-function nextCode(values: string[], prefix: string, pad: number): string {
-  const max = values.reduce((top, value) => {
-    const match = /(\d+)$/.exec(value)
-    return match ? Math.max(top, Number(match[1])) : top
-  }, 0)
-  return `${prefix}${String(max + 1).padStart(pad, "0")}`
-}
 
 function toPlot(r: typeof schema.plots.$inferSelect) {
   return {

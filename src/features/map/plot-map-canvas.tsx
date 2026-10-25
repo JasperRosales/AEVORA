@@ -1,4 +1,4 @@
-import { Maximize, Minus, Plus } from "lucide-react"
+import { LayoutGrid, Maximize, Minus, Plus } from "lucide-react"
 import { useState } from "react"
 import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
@@ -12,15 +12,19 @@ const statusFill = Object.fromEntries(
 
 const CELL = 16
 const GAP = 4
-const SECTION_COLS = 6
-const SECTION_ROWS = 4
-const SECTION_W = SECTION_COLS * (CELL + GAP) + GAP
-const SECTION_H = SECTION_ROWS * (CELL + GAP) + GAP + 16
-const SECTIONS = ["A", "B", "C", "D"]
+const HEADER = 14
+const TOP = 40
+const SECTION_COLS = 2
+const SECTION_GAP_X = 40
+const SECTION_GAP_Y = 24
+
+const collator = new Intl.Collator(undefined, { numeric: true })
 
 /**
- * The interactive SVG plot map: four sections of grid cells with zoom
- * controls and a status legend. Plots outside the active filters dim to 15%.
+ * The interactive SVG plot map. Sections and grid dimensions are derived from
+ * the plots themselves, so a cemetery laid out with the grid builder (any
+ * number of sections, rows or columns) renders without code changes. Plots
+ * outside the active filters dim to 15%; selecting a cell opens its details.
  */
 export function PlotMapCard({
   plots,
@@ -30,6 +34,7 @@ export function PlotMapCard({
   status,
   selected,
   onSelect,
+  onBuildGrid,
 }: {
   plots: Plot[]
   cemeteryId: string
@@ -38,8 +43,49 @@ export function PlotMapCard({
   status: PlotStatus | "All"
   selected: Plot | null
   onSelect: (plot: Plot) => void
+  onBuildGrid?: () => void
 }) {
   const [zoom, setZoom] = useState(1)
+
+  const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
+  const sections = [...new Set(cemeteryPlots.map((p) => p.section))].sort(
+    collator.compare
+  )
+  const maxRow = Math.max(1, ...cemeteryPlots.map((p) => p.row))
+  const maxCol = Math.max(1, ...cemeteryPlots.map((p) => p.column))
+
+  const sectionW = maxCol * (CELL + GAP) + GAP
+  const gridH = maxRow * (CELL + GAP) - GAP
+  const sectionH = HEADER + GAP + gridH + GAP
+  const rowsOfSections = Math.max(1, Math.ceil(sections.length / SECTION_COLS))
+  const width = Math.max(320, TOP + SECTION_COLS * (sectionW + SECTION_GAP_X))
+  const height = TOP + rowsOfSections * (sectionH + SECTION_GAP_Y) + 4
+
+  if (sections.length === 0) {
+    return (
+      <Card title="Cemetery Map">
+        <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
+          <LayoutGrid size={28} className="text-deep/30" />
+          <div>
+            <p className="text-sm font-medium text-deep">
+              No plots laid out in this cemetery yet.
+            </p>
+            <p className="mt-1 text-xs text-deep/60">
+              Build a grid to create a whole block of plots at once.
+            </p>
+          </div>
+          {onBuildGrid && (
+            <button
+              onClick={onBuildGrid}
+              className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-cream transition hover:bg-deep"
+            >
+              Build plot grid
+            </button>
+          )}
+        </div>
+      </Card>
+    )
+  }
 
   return (
     <Card
@@ -72,17 +118,19 @@ export function PlotMapCard({
     >
       <div className="overflow-auto">
         <svg
-          width={SECTION_W * 2 + 60}
-          height={SECTION_H * 2 + 40}
+          width={width}
+          height={height}
           className="bg-cream transition-transform duration-300 ease-out"
           style={{ transform: `scale(${zoom})`, transformOrigin: "top left" }}
         >
           <text x={20} y={20} className="fill-deep text-xs">
             Main Entrance
           </text>
-          {SECTIONS.map((sec, i) => {
-            const originX = 30 + (i % 2) * (SECTION_W + 40)
-            const originY = 30 + Math.floor(i / 2) * (SECTION_H + 20)
+          {sections.map((sec, i) => {
+            const originX =
+              TOP + (i % SECTION_COLS) * (sectionW + SECTION_GAP_X)
+            const originY =
+              TOP + Math.floor(i / SECTION_COLS) * (sectionH + SECTION_GAP_Y)
             return (
               <g key={sec}>
                 <text
@@ -93,18 +141,28 @@ export function PlotMapCard({
                   Section {sec}
                 </text>
                 <rect
-                  x={originX - GAP}
+                  x={originX}
                   y={originY}
-                  width={SECTION_W}
-                  height={SECTION_H - 14}
+                  width={sectionW}
+                  height={sectionH}
                   rx={6}
                   fill="#102B52"
                   opacity={0.08}
                 />
-                {plots
-                  .filter(
-                    (p) => p.cemeteryId === cemeteryId && p.section === sec
-                  )
+                {Array.from({ length: maxCol }).map((_, col) => (
+                  <text
+                    key={`col-${col}`}
+                    x={originX + GAP + col * (CELL + GAP) + CELL / 2}
+                    y={originY + HEADER - 4}
+                    textAnchor="middle"
+                    className="fill-deep"
+                    style={{ fontSize: 7, opacity: 0.5 }}
+                  >
+                    {col + 1}
+                  </text>
+                ))}
+                {cemeteryPlots
+                  .filter((p) => p.section === sec)
                   .map((p) => {
                     const matches =
                       (burialType === "All" || p.type === burialType) &&
@@ -117,7 +175,7 @@ export function PlotMapCard({
                       <motion.rect
                         key={p.id}
                         x={originX + GAP + (p.column - 1) * (CELL + GAP)}
-                        y={originY + 18 + (p.row - 1) * (CELL + GAP)}
+                        y={originY + HEADER + GAP + (p.row - 1) * (CELL + GAP)}
                         width={CELL}
                         height={CELL}
                         rx={2}
