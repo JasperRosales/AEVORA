@@ -1,11 +1,10 @@
-import { LayoutGrid, Plus } from "lucide-react"
-import { useMemo } from "react"
+import { LayoutGrid, Move, Plus, TreeDeciduous, Waypoints, ZoomIn, ZoomOut } from "lucide-react"
+import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { plotStatusFill } from "@/lib/status"
 import type { BurialType, Plot, PlotStatus } from "@/types/domain"
 import { PlotLandMap, type LandMapPlot } from "./plot-land-map"
 
-const SECTION_COLUMN_OPTIONS = [1, 2, 3, 4] as const
 const STATUSES = Object.keys(plotStatusFill) as PlotStatus[]
 
 const collator = new Intl.Collator(undefined, { numeric: true })
@@ -16,11 +15,7 @@ function shortLabel(plotNumber: string): string {
 }
 
 /**
- * The staff site-plan map. Sections are drawn as land parcels whose proportions
- * follow their plot grid, so a wide block reads as a rectangle, a 6×6 block as
- * a square, and a 10×10 block as a large square. Staff can select any plot,
- * change its status from the palette, or open the grid builder to add a new
- * parcel of plots. Plots outside the active filters dim instead of vanishing.
+ * The staff site-plan map. All plots displayed freely for customization.
  */
 export function PlotMapCard({
   plots,
@@ -51,41 +46,37 @@ export function PlotMapCard({
   sectionColumns: number
   onSectionColumnsChange: (columns: number) => void
 }) {
+  const [isDraggable, setIsDraggable] = useState(false)
+  const [selectedPlots, setSelectedPlots] = useState<Set<string>>(new Set())
+  const [zoom, setZoom] = useState(1)
+  const [editMode, setEditMode] = useState<"plots" | "roads" | "walls" | "trees">("plots")
+
   const mapData = useMemo(() => {
     const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
-    const names = [...new Set(cemeteryPlots.map((p) => p.section))].sort(
-      collator.compare
-    )
-    const sections = names.map((name) => ({
-      name,
-      plots: cemeteryPlots
-        .filter((p) => p.section === name)
-        .map((p) => ({
+    const sections = [
+      {
+        name: "All",
+        plots: cemeteryPlots.map((p) => ({
           id: p.id,
-          label: shortLabel(p.plotNumber),
+          label: p.plotNumber.replace(/^[^-]+-/, ''),
           row: p.row,
           column: p.column,
           status: p.status,
           type: p.type,
         })),
-    }))
+      },
+    ]
     const visibleIds = new Set(
       cemeteryPlots
         .filter(
           (p) =>
             (burialType === "All" || p.type === burialType) &&
-            (section === "All" || p.section === section) &&
             (status === "All" || p.status === status)
         )
         .map((p) => p.id)
     )
     return { sections, visibleIds }
-  }, [plots, cemeteryId, burialType, section, status])
-
-  const sectionRows = Math.max(
-    1,
-    Math.ceil(mapData.sections.length / sectionColumns)
-  )
+  }, [plots, cemeteryId, burialType, status])
 
   if (mapData.sections.length === 0) {
     return (
@@ -118,25 +109,57 @@ export function PlotMapCard({
       title="Cemetery Map"
       action={
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="hidden text-[11px] text-deep/50 sm:inline">
-            {sectionColumns} col × {sectionRows} row
-            {sectionRows === 1 ? "" : "s"}
-          </span>
-          <label className="sr-only" htmlFor="map-section-columns">
-            Map layout columns
-          </label>
-          <select
-            id="map-section-columns"
-            value={sectionColumns}
-            onChange={(e) => onSectionColumnsChange(Number(e.target.value))}
-            className="rounded-lg border border-deep/25 bg-cream px-2 py-1 text-xs outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))}
+            className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
+            title="Zoom out"
           >
-            {SECTION_COLUMN_OPTIONS.map((count) => (
-              <option key={count} value={count}>
-                {count} column{count === 1 ? "" : "s"}
-              </option>
+            <ZoomOut size={13} />
+          </button>
+          <span className="text-xs text-deep/60">{Math.round(zoom * 100)}%</span>
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
+            className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
+            title="Zoom in"
+          >
+            <ZoomIn size={13} />
+          </button>
+          <div className="flex overflow-hidden rounded-lg border border-deep/30">
+            {[
+              { mode: "plots" as const, label: "Plots", icon: LayoutGrid },
+              { mode: "roads" as const, label: "Roads", icon: Waypoints },
+              { mode: "walls" as const, label: "Walls", icon: null },
+              { mode: "trees" as const, label: "Trees", icon: TreeDeciduous },
+            ].map(({ mode, label, icon: Icon }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setEditMode(mode)}
+                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition ${
+                  editMode === mode
+                    ? "bg-deep text-cream"
+                    : "text-navy hover:bg-deep/5"
+                }`}
+              >
+                {Icon && <Icon size={12} />}
+                {!Icon && mode === "walls" && <span className="text-xs">▭</span>}
+                {label}
+              </button>
             ))}
-          </select>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsDraggable(!isDraggable)}
+            className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
+              isDraggable
+                ? "bg-navy text-cream"
+                : "neu-button"
+            }`}
+          >
+            <Move size={13} /> {isDraggable ? "Done" : "Move"}
+          </button>
           {onBuildGrid && (
             <button
               type="button"
@@ -197,19 +220,41 @@ export function PlotMapCard({
         )}
       </div>
 
-      <div className="overflow-hidden rounded-xl">
-        <PlotLandMap
-          sections={mapData.sections}
-          sectionColumns={sectionColumns}
-          selectedId={selected?.id ?? null}
-          onSelect={(id) => {
-            const plot = plots.find((p) => p.id === id)
-            if (plot) onSelect(plot)
-          }}
-          onBackgroundClick={() => onSelect(null)}
-          isDimmed={(plot: LandMapPlot) => !mapData.visibleIds.has(plot.id)}
-          ariaLabel="Cemetery plot map"
-        />
+      <div className="overflow-auto rounded-xl" style={{ maxHeight: "600px", background: "#f8f6f0" }}>
+        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: `${100 / zoom}%` }}>
+          <PlotLandMap
+            sections={mapData.sections}
+            sectionColumns={sectionColumns}
+            selectedId={selected?.id ?? null}
+            onSelect={(id) => {
+              if (isDraggable || editMode !== "plots") {
+                const plot = plots.find((p) => p.id === id)
+                if (plot) {
+                  const newSet = new Set(selectedPlots)
+                  if (newSet.has(id)) newSet.delete(id)
+                  else newSet.add(id)
+                  setSelectedPlots(newSet)
+                  if (!isDraggable) onSelect(plot)
+                }
+                return
+              }
+              const plot = plots.find((p) => p.id === id)
+              if (plot) onSelect(plot)
+            }}
+            onBackgroundClick={() => {
+              if (editMode === "plots" && !isDraggable) onSelect(null)
+              if (editMode === "plots") setSelectedPlots(new Set())
+            }}
+            isDimmed={(plot: LandMapPlot) => editMode === "plots" ? !mapData.visibleIds.has(plot.id) : false}
+            ariaLabel="Cemetery plot map"
+            draggable={isDraggable}
+            unified={true}
+            customCols={undefined}
+            plotDraggable={isDraggable && editMode === "plots"}
+            selectedPlots={selectedPlots}
+            editMode={editMode}
+          />
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">

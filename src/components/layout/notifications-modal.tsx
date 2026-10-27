@@ -20,6 +20,10 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+function isMissingNotification(err: unknown): boolean {
+  return errorMessage(err).includes("→ 404")
+}
+
 /**
  * Header notification centre. Rows can be marked read/unread or deleted, and
  * "Mark all read" applies the change to every unread notification. Each action
@@ -56,7 +60,12 @@ export function NotificationsModal({
       })
       updateNotificationRow(updated)
     } catch (err) {
-      setError(errorMessage(err))
+      if (isMissingNotification(err)) {
+        removeNotification(notification.id)
+        setError("That notification is no longer available and was removed.")
+      } else {
+        setError(errorMessage(err))
+      }
     } finally {
       setPending(null)
     }
@@ -70,7 +79,12 @@ export function NotificationsModal({
       await deleteNotification(notification.id)
       removeNotification(notification.id)
     } catch (err) {
-      setError(errorMessage(err))
+      if (isMissingNotification(err)) {
+        removeNotification(notification.id)
+        setError("That notification was already removed.")
+      } else {
+        setError(errorMessage(err))
+      }
     } finally {
       setPending(null)
     }
@@ -82,10 +96,25 @@ export function NotificationsModal({
     setPendingAll(true)
     setError(null)
     try {
-      const updated = await Promise.all(
+      const results = await Promise.allSettled(
         unread.map((n) => updateNotification(n.id, { read: true }))
       )
+      const updated: AppNotification[] = []
+      let missing = false
+      for (const [index, result] of results.entries()) {
+        if (result.status === "fulfilled") {
+          updated.push(result.value)
+        } else if (isMissingNotification(result.reason)) {
+          removeNotification(unread[index].id)
+          missing = true
+        } else {
+          throw result.reason
+        }
+      }
       updateNotificationRows(updated)
+      if (missing) {
+        setError("Some notifications were already removed.")
+      }
     } catch (err) {
       setError(errorMessage(err))
     } finally {

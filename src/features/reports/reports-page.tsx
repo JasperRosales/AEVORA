@@ -7,43 +7,106 @@ import { DonutChart } from "@/components/ui/donut-chart"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
-import { useData } from "@/data/store"
+import { insertReport, useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
 import {
   DeleteReportModal,
   EditReportModal,
 } from "@/features/shared/record-dialogs"
+import { createReport } from "@/lib/neon-api"
+import { ReportPreviewModal } from "@/features/overview/overview-report-preview"
 import type { GeneratedReport, Payment } from "@/types/domain"
+import type { Report } from "@/features/overview/overview-reports"
 
 function groupRevenue(list: Payment[], mode: "week" | "month" | "year") {
   const map = new Map<string, number>()
   for (const p of list) {
     if (p.status !== "Paid") continue
     const d = new Date(p.date)
-    let sortKey = d.getTime()
-    let label = ""
-    if (mode === "year") {
-      sortKey = new Date(d.getFullYear(), 0, 1).getTime()
-      label = String(d.getFullYear())
-    } else if (mode === "month") {
-      sortKey = new Date(d.getFullYear(), d.getMonth(), 1).getTime()
-      label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })
-    } else {
-      const weekStart = new Date(d)
-      weekStart.setDate(d.getDate() - d.getDay())
-      sortKey = weekStart.getTime()
-      label = weekStart.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      })
-    }
+    const [sortKey, label] =
+      mode === "year"
+        ? [
+            new Date(d.getFullYear(), 0, 1).getTime(),
+            String(d.getFullYear()),
+          ]
+        : mode === "month"
+          ? [
+              new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
+              d.toLocaleDateString("en-US", {
+                month: "short",
+                year: "2-digit",
+              }),
+            ]
+          : (() => {
+              const weekStart = new Date(d)
+              weekStart.setDate(d.getDate() - d.getDay())
+              return [
+                weekStart.getTime(),
+                weekStart.toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                }),
+              ]
+            })()
+
     const k = `${sortKey}|${label}`
     map.set(k, (map.get(k) ?? 0) + p.amount)
   }
   return [...map.entries()]
     .sort(([a], [b]) => parseInt(a) - parseInt(b))
     .map(([k, amount]) => ({ label: k.split("|")[1], amount }))
+}
+
+function buildFilteredPaymentsReport(
+  payments: Payment[],
+  cemeteryLabel: string,
+  monthLabel: string
+): Report {
+  const paid = payments
+    .filter((payment) => payment.status === "Paid")
+    .reduce((sum, payment) => sum + payment.amount, 0)
+  const pending = payments
+    .filter((payment) => payment.status !== "Paid")
+    .reduce((sum, payment) => sum + payment.amount, 0)
+  const statusCounts = ["Paid", "Pending", "Overdue"].map((status) => ({
+    label: status,
+    value: String(
+      payments.filter((payment) => payment.status === status).length
+    ),
+  }))
+
+  return {
+    type: "Payments",
+    summary: [
+      { label: "Transactions", value: String(payments.length) },
+      { label: "Collected", value: formatCurrency(paid) },
+      { label: "Outstanding", value: formatCurrency(pending) },
+      { label: "Cemetery", value: cemeteryLabel },
+      { label: "Month", value: monthLabel },
+    ],
+    breakdown: statusCounts,
+    table: {
+      columns: [
+        "Receipt",
+        "Client",
+        "Plot",
+        "Date",
+        "Status",
+        "Method",
+        "Amount",
+      ],
+      rows: payments.map((payment) => [
+        payment.receiptNumber,
+        payment.clientName,
+        payment.plotNumber,
+        payment.date,
+        payment.status,
+        payment.method,
+        formatCurrency(payment.amount),
+      ]),
+    },
+  }
 }
 
 /** Shown when a chart has no rows yet (e.g. before data loads). */
@@ -265,6 +328,9 @@ export function ReportsPage() {
   const [appliedMonth, setAppliedMonth] = useState("All Months")
   const [editing, setEditing] = useState<GeneratedReport | null>(null)
   const [deleting, setDeleting] = useState<GeneratedReport | null>(null)
+  const [preview, setPreview] = useState<Report | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
 
   const monthOptions = [
     ...new Set(payments.map((p) => p.date.slice(0, 7))),
@@ -306,6 +372,53 @@ export function ReportsPage() {
     status: s,
     count: filteredReservations.filter((r) => r.status === s).length,
   }))
+
+  async function generateReport() {
+    setAppliedMonth(month)
+    setAppliedCemetery(cemetery)
+    setGenerationError(null)
+
+    const reportPayments = payments.filter(
+      (payment) =>
+        (cemetery === "All Cemeteries" || payment.cemeteryId === cemetery) &&
+        (month === "All Months" || payment.date.startsWith(month))
+    )
+    const cemeteryLabel =
+      cemetery === "All Cemeteries"
+        ? cemetery
+        : (cemeteries.find((item) => item.id === cemetery)?.name ?? cemetery)
+    const monthLabel =
+      month === "All Months"
+        ? month
+        : new Date(`${month}-01`).toLocaleDateString("en-US", {
+            month: "long",
+            year: "numeric",
+          })
+    const report = buildFilteredPaymentsReport(
+      reportPayments,
+      cemeteryLabel,
+      monthLabel
+    )
+    setPreview(report)
+    setGenerating(true)
+
+    try {
+      insertReport(
+        await createReport({
+          type: report.type,
+          name: `${report.type} Report${month !== "All Months" ? ` - ${monthLabel}` : ""}`,
+        })
+      )
+    } catch (error) {
+      setGenerationError(
+        `Preview ready, but the report could not be logged: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <motion.div
@@ -387,13 +500,11 @@ export function ReportsPage() {
               ))}
             </select>
             <button
-              onClick={() => {
-                setAppliedMonth(month)
-                setAppliedCemetery(cemetery)
-              }}
-              className="neu-button px-4 py-1.5 text-sm"
+              onClick={() => void generateReport()}
+              disabled={generating}
+              className="neu-button px-4 py-1.5 text-sm disabled:opacity-60"
             >
-              Generate
+              {generating ? "Generating..." : "Generate"}
             </button>
             <button
               onClick={() => {
@@ -407,6 +518,11 @@ export function ReportsPage() {
               Clear Filters
             </button>
           </div>
+          {generationError && (
+            <p className="mt-2 text-xs text-red-600" role="status">
+              {generationError}
+            </p>
+          )}
         </Card>
       </motion.div>
 
@@ -559,6 +675,13 @@ export function ReportsPage() {
 
       <EditReportModal record={editing} onClose={() => setEditing(null)} />
       <DeleteReportModal record={deleting} onClose={() => setDeleting(null)} />
+      {preview && (
+        <ReportPreviewModal
+          report={preview}
+          onClose={() => setPreview(null)}
+          onOpenReports={() => setPreview(null)}
+        />
+      )}
     </motion.div>
   )
 }

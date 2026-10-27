@@ -18,7 +18,9 @@ Total Clients, Reservations, Payments, and Agreements (whole dataset).
 - **Month** — All Months, or any `YYYY-MM` present in the payment data
   (derived from `payments.date`).
 - **Cemetery** — All Cemeteries, or one cemetery.
-- **Generate** — applies the chosen month/cemetery to every chart below.
+- **Generate** — applies the chosen month/cemetery to every chart below, opens
+  a filtered payment report preview, logs the report in Recent Reports, and
+  makes the preview's detail table available as a CSV download.
 - **Clear Filters** — resets to all/all.
 
 The selects are staged locally; nothing changes until **Generate** is pressed.
