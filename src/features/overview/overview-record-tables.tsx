@@ -8,8 +8,10 @@ import type { Reservation } from "@/types/domain"
 /** Latest five reservations in a compact table. */
 export function RecentReservationsCard({
   reservations,
+  onView,
 }: {
   reservations: Reservation[]
+  onView: (reservation: Reservation) => void
 }) {
   return (
     <Card title="Recent Reservations">
@@ -42,7 +44,11 @@ export function RecentReservationsCard({
                   <StatusBadge status={r.status} />
                 </td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => onView(r)}
+                    className="neu-button px-2.5 py-1 text-[11px]"
+                  >
                     View
                   </button>
                 </td>
@@ -58,8 +64,10 @@ export function RecentReservationsCard({
 /** Reservations still awaiting verification. */
 export function PendingChecksCard({
   reservations,
+  onReview,
 }: {
   reservations: Reservation[]
+  onReview: (reservation: Reservation) => void
 }) {
   const pendingChecks = reservations.filter(
     (r) => r.verification !== "Verified"
@@ -92,7 +100,11 @@ export function PendingChecksCard({
                   <StatusBadge status={r.verification} />
                 </td>
                 <td>
-                  <button className="neu-button px-2.5 py-1 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => onReview(r)}
+                    className="neu-button px-2.5 py-1 text-[11px]"
+                  >
                     Review
                   </button>
                 </td>

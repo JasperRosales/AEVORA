@@ -9,8 +9,17 @@ export function NotificationsCard({
 }: {
   notifications: AppNotification[]
 }) {
+  const unread = notifications.filter((n) => !n.read).length
+
   return (
-    <Card title="System Notifications">
+    <Card
+      title="System Notifications"
+      action={
+        <span className="text-[11px] font-medium text-deep/60">
+          {unread > 0 ? `${unread} unread` : "All read"}
+        </span>
+      }
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -21,8 +30,22 @@ export function NotificationsCard({
           </thead>
           <motion.tbody variants={rowList} initial="hidden" animate="show">
             {notifications.map((n) => (
-              <motion.tr key={n.id} variants={rowItem}>
-                <td>{n.message}</td>
+              <motion.tr
+                key={n.id}
+                variants={rowItem}
+                className={n.read ? "text-deep/55" : ""}
+              >
+                <td>
+                  <span className="flex items-center gap-2">
+                    <span
+                      aria-label={n.read ? "Read" : "Unread"}
+                      className={`h-2 w-2 shrink-0 rounded-full ${
+                        n.read ? "bg-deep/20" : "bg-teal"
+                      }`}
+                    />
+                    {n.message}
+                  </span>
+                </td>
                 <td>{n.dateTime}</td>
               </motion.tr>
             ))}

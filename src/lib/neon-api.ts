@@ -364,3 +364,18 @@ export function updateReport(
 export function deleteReport(id: string): Promise<{ ok: boolean }> {
   return apiSend<{ ok: boolean }>("DELETE", `/reports/${id}`)
 }
+
+export interface EditNotification {
+  read?: boolean
+}
+
+export function updateNotification(
+  id: string,
+  input: EditNotification
+): Promise<AppNotification> {
+  return apiSend<AppNotification>("PATCH", `/notifications/${id}`, input)
+}
+
+export function deleteNotification(id: string): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>("DELETE", `/notifications/${id}`)
+}

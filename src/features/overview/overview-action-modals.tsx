@@ -17,7 +17,13 @@ import {
   createReservation,
   type ClientPortalProvision,
 } from "@/lib/neon-api"
-import type { BurialType, Client, Payment, PlotStatus } from "@/types/domain"
+import type {
+  BurialType,
+  Client,
+  Payment,
+  Plot,
+  PlotStatus,
+} from "@/types/domain"
 
 /**
  * Forms behind the Overview quick actions. Each modal keeps its fields in an
@@ -500,12 +506,20 @@ export function AddPlotModal({ open, onClose, onCreated }: ActionModalProps) {
 
 /* --------------------------- Create Reservation --------------------------- */
 
-function CreateReservationForm({ onCreated, onClose }: FormProps) {
+function CreateReservationForm({
+  onCreated,
+  onClose,
+  initialPlot,
+}: FormProps & { initialPlot?: Plot }) {
   const { cemeteries, clients, plots } = useData()
   const [clientId, setClientId] = useState("")
-  const [cemeteryId, setCemeteryId] = useState("")
-  const [plotId, setPlotId] = useState("")
-  const [burialType, setBurialType] = useState<BurialType>("Private")
+  const [cemeteryId, setCemeteryId] = useState(
+    initialPlot?.cemeteryId ?? ""
+  )
+  const [plotId, setPlotId] = useState(initialPlot?.id ?? "")
+  const [burialType, setBurialType] = useState<BurialType>(
+    initialPlot?.type ?? "Private"
+  )
   const [date, setDate] = useState(today())
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -677,15 +691,24 @@ export function CreateReservationModal({
   open,
   onClose,
   onCreated,
-}: ActionModalProps) {
+  initialPlot,
+}: ActionModalProps & { initialPlot?: Plot }) {
   return (
     <Modal
       open={open}
       onClose={onClose}
       title="Create Reservation"
-      description="Reserve an available plot for a client. The plot is marked Reserved and the booking starts Pending verification."
+      description={
+        initialPlot
+          ? `Reserve plot ${initialPlot.plotNumber} for a client. The plot is marked Reserved and the booking starts Pending verification.`
+          : "Reserve an available plot for a client. The plot is marked Reserved and the booking starts Pending verification."
+      }
     >
-      <CreateReservationForm onCreated={onCreated} onClose={onClose} />
+      <CreateReservationForm
+        initialPlot={initialPlot}
+        onCreated={onCreated}
+        onClose={onClose}
+      />
     </Modal>
   )
 }

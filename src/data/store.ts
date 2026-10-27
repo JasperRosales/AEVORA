@@ -251,3 +251,19 @@ export function updateReportRow(row: GeneratedReport) {
 export function removeReport(id: string) {
   set({ generatedReports: state.generatedReports.filter((r) => r.id !== id) })
 }
+
+export function updateNotificationRow(row: AppNotification) {
+  set({ notifications: replace(state.notifications, row) })
+}
+
+/** Applies a batch of PATCH responses (used by "Mark all read"). */
+export function updateNotificationRows(rows: AppNotification[]) {
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  set({
+    notifications: state.notifications.map((n) => byId.get(n.id) ?? n),
+  })
+}
+
+export function removeNotification(id: string) {
+  set({ notifications: state.notifications.filter((n) => n.id !== id) })
+}

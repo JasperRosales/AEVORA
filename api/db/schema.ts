@@ -1,4 +1,4 @@
-import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
+import { boolean, integer, pgTable, text, timestamp } from "drizzle-orm/pg-core"
 
 export const cemeteries = pgTable("cemeteries", {
   id: text("id").primaryKey(),
@@ -89,6 +89,7 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   type: text("type").notNull(),
   dateTime: text("date_time").notNull(),
+  read: boolean("is_read").notNull().default(false),
 })
 
 export const generatedReports = pgTable("generated_reports", {

@@ -14,10 +14,13 @@ Postgres branch, with Neon Auth for sign-in and Neon Object Storage for
 reservation documents.
 
 Dashboard quick actions have full functionality: Add Client, Add Plot, Create
-Reservation, Record Payment, and Generate Report POST to the API function, and
-the view actions navigate straight to the matching screen. The Cemetery Map
-also has a **Build Plot Grid** builder for laying out a whole block of plots
-(multiple sections, rows × columns, start cell, shared type/size/price).
+Reservation, Record Payment, and Generate Report POST to the API function, while
+View Cemetery Map, Review Information Checking, and View Agreements navigate to
+the matching screen. On the Overview page, the Recent Reservations **View** and
+Information Checking **Review** buttons open a reservation dialog where staff can
+read the record or update its verification result. The Cemetery Map also has a
+**Build Plot Grid** builder for laying out a whole block of plots (multiple
+sections, rows × columns, start cell, shared type/size/price).
 
 ## Getting started
 
@@ -69,8 +72,9 @@ Full documentation lives in [`docs/`](docs/README.md).
 - [Login](docs/pages/login.md) — sign-in screen and role-based routing
 - [Overview](docs/pages/overview.md) — dashboard home: KPIs, occupancy,
   working quick actions, summaries, and feeds
-- [Cemetery Map](docs/pages/cemetery-map.md) — interactive SVG plot map with
-  filters, zoom, a details panel, and a bulk grid builder
+- [Cemetery Map](docs/pages/cemetery-map.md) — site-plan plot map with filters,
+  a configurable parcel layout, status editing, a details panel, and a bulk grid
+  builder
 - [Plots](docs/pages/plots.md) — searchable, paginated plot register
 - [Reservations](docs/pages/reservations.md) — reservation tracking and
   document attachments

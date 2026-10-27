@@ -1,7 +1,7 @@
 # Cemetery Map
 
 **Sidebar entry:** Cemetery Map
-**Source:** `src/features/map/cemetery-map-page.tsx` (+ `plot-map-canvas.tsx`, `plot-grid-builder.tsx`, `plot-list-view.tsx`, `plot-details-panel.tsx`)
+**Source:** `src/features/map/cemetery-map-page.tsx` (+ `plot-land-map.tsx`, `plot-map-canvas.tsx`, `plot-grid-builder.tsx`, `plot-list-view.tsx`, `plot-details-panel.tsx`)
 
 An interactive, visual view of every plot in a cemetery. Staff use it to find
 an open plot at a glance, check what surrounds it, jump to its details, and lay
@@ -34,21 +34,34 @@ plots match the current filters.
 
 ### Map view (`PlotMapCard`)
 
-- An SVG canvas whose **sections and dimensions come from the plots
-  themselves**: every distinct `section` in the cemetery is drawn, sized to the
-  highest `row` and `column` in that cemetery. A section created with the grid
-  builder appears automatically — no hardcoded A–D list.
-- Each cell is colored by status (see `plotStatusFill` in
+- A **site-plan drawing** (`PlotLandMap`), not a table of cards: a land boundary
+  contains one parcel per section, and each parcel contains its plots. Section
+  parcels keep the proportions of their plot grid, so a 4 × 8 block reads as a
+  wide rectangle, a 6 × 6 block as a square, and a 10 × 10 block as a large
+  square. A section created with the grid builder appears automatically — no
+  hardcoded A–D list.
+- The **Layout** control above the map chooses how many section parcels to place
+  per row (1–4). Rows follow automatically, and the caption reads the result,
+  e.g. `2 col × 3 rows` for six sections. The drawing scales to fill the card.
+- Each plot cell is colored by status (see `plotStatusFill` in
   `src/lib/status.ts`: green = Available, blue = Reserved, red = Occupied,
-  yellow = Waiting for Checking, grey = Unavailable).
-- Column numbers run across the top of each section so large grids stay
-  readable. A plot's position comes from its `row` and `column` fields.
-- Plots that don't match the active filters dim to 15% opacity rather than
+  yellow = Waiting for Checking, grey = Unavailable). A plot's position comes
+  from its `row` and `column` fields.
+- Plot numbers are printed on cells when the section grid is small enough to
+  stay readable; otherwise the tooltip carries the number and status.
+- Plots that don't match the active filters dim to 18% opacity rather than
   disappearing, keeping the spatial context.
-- **Zoom in / out / reset** controls scale the canvas (0.5×–3×).
-- Hovering a cell shows a tooltip with the plot number and status; clicking
-  selects the plot.
-- A legend at the bottom maps colors to statuses.
+- Clicking a cell selects it; clicking the land background clears the selection.
+  Hovering a cell shows a tooltip with the plot number and status.
+- The **status palette** above the map applies a status to the selected plot
+  immediately (`PATCH /plots/:id`). Choosing **Available** also clears
+  `reserved_for`, so a freed plot can be reserved again. The store is updated in
+  place, so the map, KPIs and list reflect the change without a reload.
+- The **Add plots** button in the map header opens the grid builder with the
+  next unused section letter prefilled. Rows × columns in the builder sets the
+  new parcel's shape on the drawing.
+- A compact legend below the drawing repeats the status colors for quick
+  reading.
 - With no plots in the cemetery, the card shows an empty state with a **Build
   plot grid** shortcut.
 
@@ -59,6 +72,8 @@ a rectangular block and previews it before creating anything:
 
 - **Cemetery**, **Sections** (comma-separated, e.g. `A, B, C`), **Rows**,
   **Columns**, **Start row** and **Start column**.
+- Rows × columns also sets the parcel's shape on the site plan: 3 × 3 is a
+  square, 4 × 8 a wide rectangle, and 10 × 10 a large square.
 - Shared **type**, **status**, **size** and **price** for every generated plot.
 - The plot number and id use the same scheme as the single Add Plot action
   (`A-101`, id `<cemetery>-A-1-1`), so a grid extension lines up with existing
@@ -74,7 +89,22 @@ a rectangular block and previews it before creating anything:
 
 Shown next to the map (left column). When a plot is selected it displays its
 number, section, type, size, price, and status; otherwise it prompts the user
-to click a plot.
+to click a plot. If a reservation exists for the plot, the panel also shows its
+number and information-checking badge, and the action buttons become live:
+
+- **Reserve Plot** (Available) opens the create-reservation form with the plot
+  and cemetery prefilled.
+- **View Reservation** (Reserved/Occupied) opens the reservation record dialog.
+- **Review Request** (Waiting for Checking, or any reservation not yet
+  `Verified`) opens the same dialog in information-checking mode, where staff
+  can set the reservation status and verification result.
+- **View Details** always opens the plot edit dialog for type, size, price,
+  status, and reserved-for changes.
+
+The reservation dialog is shared with the Overview page
+(`src/features/shared/reservation-review-modal.tsx`). Saving calls
+`PATCH /reservations/:id`, mirrors the updated row into the store, and refreshes
+the map, details panel, and Overview tables without a reload.
 
 ### List view (`PlotListView`)
 

@@ -4,7 +4,9 @@ import { CemeterySelector, cemeteryName } from "@/components/cemetery-selector"
 import { Card } from "@/components/ui/card"
 import { useData } from "@/data/store"
 import type { DashboardProps } from "@/features/lazy-routes"
+import { ReservationDetailsModal } from "@/features/shared/reservation-review-modal"
 import { fadeUp, stagger } from "@/lib/motion"
+import type { Reservation } from "@/types/domain"
 import { NotificationsCard, RecentActivityCard } from "./overview-info-cards"
 import { OverviewKpis } from "./overview-kpis"
 import { OccupancyCard } from "./overview-occupancy"
@@ -33,6 +35,11 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
     reservations,
   } = useData()
   const [cemeteryId, setCemeteryId] = useState("all")
+  const [reservationModal, setReservationModal] = useState<{
+    reservation: Reservation
+    mode: "view" | "review"
+  } | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const filteredPlots = useMemo(
     () =>
@@ -74,6 +81,22 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
         </Card>
       </motion.div>
 
+      {notice && (
+        <motion.div
+          variants={fadeUp}
+          className="flex items-start justify-between gap-3 rounded-xl bg-teal/20 px-4 py-3 text-sm text-deep"
+        >
+          <p>{notice}</p>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="shrink-0 text-xs font-semibold underline-offset-2 hover:underline"
+          >
+            Dismiss
+          </button>
+        </motion.div>
+      )}
+
       <motion.div variants={fadeUp}>
         <OverviewKpis plots={filteredPlots} />
       </motion.div>
@@ -84,8 +107,18 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
       </motion.div>
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">
-        <RecentReservationsCard reservations={reservations} />
-        <PendingChecksCard reservations={reservations} />
+        <RecentReservationsCard
+          reservations={reservations}
+          onView={(reservation) =>
+            setReservationModal({ reservation, mode: "view" })
+          }
+        />
+        <PendingChecksCard
+          reservations={reservations}
+          onReview={(reservation) =>
+            setReservationModal({ reservation, mode: "review" })
+          }
+        />
       </motion.div>
 
       <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-3">
@@ -98,6 +131,16 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
         <RecentActivityCard activities={activities} />
         <ReportsCard onNavigate={onNavigate} />
       </motion.div>
+
+      {reservationModal && (
+        <ReservationDetailsModal
+          key={`${reservationModal.reservation.id}-${reservationModal.mode}`}
+          reservation={reservationModal.reservation}
+          mode={reservationModal.mode}
+          onClose={() => setReservationModal(null)}
+          onUpdated={(message) => setNotice(message)}
+        />
+      )}
     </motion.div>
   )
 }

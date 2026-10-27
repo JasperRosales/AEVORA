@@ -72,8 +72,11 @@ notice and the write routes return `403`.
 The buying journey starts here. The tab opens on the **Map** view for the first
 cemetery that has an available plot, and can be switched to **List**.
 
-- **Map** (`ClientPlotMap`): the same section grids the office laid out, derived
-  from the plots themselves (any number of sections, rows and columns).
+- **Map** (`ClientPlotMap`): the same site-plan drawing the office uses
+  (`PlotLandMap`), derived from the plots themselves (any number of sections,
+  rows and columns). Sections are drawn as full-width land parcels, stacked on
+  the narrow portal so cells stay readable, and the drawing scales to the portal
+  width.
   - Cells are colored by status — green Available, blue Reserved, red Occupied,
     yellow Waiting for Checking, grey Unavailable — with a legend.
   - Tapping a cell opens a details sheet with the plot number, cemetery,

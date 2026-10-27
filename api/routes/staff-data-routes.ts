@@ -843,6 +843,41 @@ routes.delete("/reports/:id", staffGuard, async (c) => {
   return c.json({ ok: true })
 })
 
+routes.patch("/notifications/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const [existing] = await db
+    .select()
+    .from(schema.notifications)
+    .where(eq(schema.notifications.id, id))
+  if (!existing) return c.json({ error: "Unknown notification" }, 404)
+
+  // Only the read flag is editable; the message is an event record.
+  const [updated] = await db
+    .update(schema.notifications)
+    .set({
+      read:
+        typeof body.read === "boolean" ? body.read : existing.read,
+    })
+    .where(eq(schema.notifications.id, id))
+    .returning()
+  return c.json(updated)
+})
+
+routes.delete("/notifications/:id", staffGuard, async (c) => {
+  const id = c.req.param("id")
+  const [existing] = await db
+    .select()
+    .from(schema.notifications)
+    .where(eq(schema.notifications.id, id))
+  if (!existing) return c.json({ error: "Unknown notification" }, 404)
+
+  await db
+    .delete(schema.notifications)
+    .where(eq(schema.notifications.id, id))
+  return c.json({ ok: true })
+})
+
 /* --------------------------------- helpers --------------------------------- */
 
 function toPlot(r: typeof schema.plots.$inferSelect) {

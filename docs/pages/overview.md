@@ -32,9 +32,14 @@ cards, each living in its own module under `src/features/overview/`.
    **Download CSV** or jump to the Reports log. Generating also logs the report
    (`POST /reports`) so it appears in Recent Reports.
 6. **Recent Reservations** (`overview-record-tables.tsx`) — the five most
-   recent reservations with client, cemetery, plot, date, and status badge.
+   recent reservations with client, cemetery, plot, date, and status badge. Each
+   row's **View** button opens the reservation record dialog.
 7. **Pending Checks** (`overview-record-tables.tsx`) — reservations whose
-   verification status is not yet "Verified".
+   verification status is not yet "Verified". Each row's **Review** button opens
+   the same dialog directly in information-checking mode, where staff can set
+   the reservation status and verification result. Saving updates Postgres and
+   the shared store, so the row leaves the pending list when it becomes
+   Verified.
 8. **Payment Summary** (`overview-summary-cards.tsx`) — amount collected (Paid
    payments), a stacked Paid/Pending/Overdue bar, and remaining balance.
 9. **Agreement Summary** (`overview-summary-cards.tsx`) — active vs total

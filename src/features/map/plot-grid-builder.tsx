@@ -39,10 +39,12 @@ function errorMessage(err: unknown): string {
  */
 export function PlotGridBuilderModal({
   cemeteryId,
+  initialSection,
   onClose,
   onCreated,
 }: {
   cemeteryId: string
+  initialSection?: string
   onClose: () => void
   onCreated: (message: string) => void
 }) {
@@ -50,7 +52,7 @@ export function PlotGridBuilderModal({
   const [cemetery, setCemetery] = useState(
     cemeteryId || cemeteries[0]?.id || ""
   )
-  const [sections, setSections] = useState("A")
+  const [sections, setSections] = useState(initialSection ?? "A")
   const [rows, setRows] = useState("4")
   const [columns, setColumns] = useState("6")
   const [startRow, setStartRow] = useState("1")
@@ -282,6 +284,11 @@ export function PlotGridBuilderModal({
           </div>
         </div>
 
+        <p className="text-[11px] text-deep/50">
+          Rows × columns also sets the parcel’s shape on the map: 3 × 3 is a
+          square, 4 × 8 a wide rectangle, and 10 × 10 a large square.
+        </p>
+
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label className={LABEL} htmlFor="grid-type">
@@ -379,8 +386,11 @@ export function PlotGridBuilderModal({
                       className="grid gap-1"
                       style={{
                         gridTemplateColumns: `repeat(${colCount}, minmax(0, 1fr))`,
-                        // Keep a narrow preview (e.g. one column) compact.
-                        maxWidth: `${colCount * 28}px`,
+                        gridTemplateRows: `repeat(${rowCount}, minmax(0, 1fr))`,
+                        aspectRatio: `${colCount} / ${rowCount}`,
+                        // Fill the preview width, but cap the height so a
+                        // narrow block doesn't turn into a long column.
+                        maxHeight: "180px",
                       }}
                     >
                       {cells.map((cell) => {
@@ -391,7 +401,7 @@ export function PlotGridBuilderModal({
                             title={`${cell.plotNumber}${
                               exists ? " · already exists" : ""
                             }`}
-                            className={`aspect-square rounded-[2px] ${
+                            className={`rounded-[2px] ${
                               exists ? "bg-deep/15" : "bg-teal/70"
                             }`}
                           />

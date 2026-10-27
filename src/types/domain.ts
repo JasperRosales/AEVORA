@@ -1,23 +1,13 @@
 export type PlotStatus =
-  | "Available"
-  | "Reserved"
-  | "Occupied"
-  | "Waiting for Checking"
-  | "Unavailable"
+  "Available" | "Reserved" | "Occupied" | "Waiting for Checking" | "Unavailable"
 
 export type BurialType = "Private" | "Vertical" | "Public"
 
 export type VerificationStatus =
-  | "Waiting for Checking"
-  | "Under Review"
-  | "Verified"
-  | "Requires Action"
+  "Waiting for Checking" | "Under Review" | "Verified" | "Requires Action"
 
 export type ReservationStatus =
-  | "Pending"
-  | "Under Verification"
-  | "Confirmed"
-  | "Cancelled"
+  "Pending" | "Under Verification" | "Confirmed" | "Cancelled"
 
 export type PaymentStatus = "Paid" | "Pending" | "Overdue"
 
@@ -104,6 +94,7 @@ export interface AppNotification {
   message: string
   type: "reservation" | "verification" | "payment" | "agreement" | "plot"
   dateTime: string
+  read: boolean
 }
 
 export interface GeneratedReport {

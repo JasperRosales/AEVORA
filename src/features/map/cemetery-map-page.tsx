@@ -11,22 +11,45 @@ import { useMemo, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
-import { useData } from "@/data/store"
+import { updatePlotRow, useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { fadeUp, pageSwap, stagger } from "@/lib/motion"
+import { updatePlot } from "@/lib/neon-api"
 import { plotStatusFill } from "@/lib/status"
-import type { BurialType, Plot, PlotStatus } from "@/types/domain"
+import type { BurialType, Plot, PlotStatus, Reservation } from "@/types/domain"
+import { CreateReservationModal } from "@/features/overview/overview-action-modals"
+import { EditPlotModal } from "@/features/shared/record-dialogs"
+import { ReservationDetailsModal } from "@/features/shared/reservation-review-modal"
 import { PlotDetailsCard } from "./plot-details-panel"
 import { PlotGridBuilderModal } from "./plot-grid-builder"
 import { PlotListView } from "./plot-list-view"
 import { PlotMapCard } from "./plot-map-canvas"
 
 /**
+ * Latest active reservation for a plot. Cancelled bookings are ignored: the
+ * map panel reflects the plot's current state, while the Reservations screen
+ * keeps the full history.
+ */
+function reservationForPlot(
+  reservations: Reservation[],
+  plot: Plot
+): Reservation | null {
+  const matches = reservations.filter(
+    (r) =>
+      r.cemeteryId === plot.cemeteryId &&
+      r.plotNumber === plot.plotNumber &&
+      r.status !== "Cancelled"
+  )
+  if (matches.length === 0) return null
+  return matches.slice().sort((a, b) => b.date.localeCompare(a.date))[0]
+}
+
+/**
  * Cemetery map page: KPI strip, filter bar, and a Map/List view of every
  * plot in the selected cemetery.
  */
 export function CemeteryMapPage() {
-  const { cemeteries, plots } = useData()
+  const { cemeteries, plots, reservations } = useData()
   const [cemeteryId, setCemeteryId] = useState("")
   // Falls back to the first cemetery until the user picks one (data loads async).
   const activeCemeteryId = cemeteryId || cemeteries[0]?.id || ""
@@ -34,10 +57,19 @@ export function CemeteryMapPage() {
   const [section, setSection] = useState("All")
   const [status, setStatus] = useState<PlotStatus | "All">("All")
   const [search, setSearch] = useState("")
-  const [selected, setSelected] = useState<Plot | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [view, setView] = useState<"Map" | "List">("Map")
+  const [sectionColumns, setSectionColumns] = useState(2)
   const [builderOpen, setBuilderOpen] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [statusBusy, setStatusBusy] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const [reservingPlot, setReservingPlot] = useState<Plot | null>(null)
+  const [editingPlot, setEditingPlot] = useState<Plot | null>(null)
+  const [reservationModal, setReservationModal] = useState<{
+    reservation: Reservation
+    mode: "view" | "review"
+  } | null>(null)
 
   const sections = useMemo(
     () =>
@@ -63,6 +95,30 @@ export function CemeteryMapPage() {
     [activeCemeteryId, burialType, section, status, plots]
   )
 
+  // Pre-fill the builder with the first unused section letter, so "Add plots"
+  // creates a new parcel instead of extending section A by accident.
+  const nextSection = useMemo(() => {
+    const used = new Set(sections)
+    for (let i = 0; i < 26; i++) {
+      const letter = String.fromCharCode(65 + i)
+      if (!used.has(letter)) return letter
+    }
+    return "A"
+  }, [sections])
+
+  // Derive the selected plot from the store by id rather than keeping a
+  // snapshot: status changes, bookings and edits replace the row, and the
+  // details panel should always show the fresh version.
+  const selected = useMemo(
+    () => (selectedId ? (plots.find((p) => p.id === selectedId) ?? null) : null),
+    [plots, selectedId]
+  )
+
+  const selectedReservation = useMemo(
+    () => (selected ? reservationForPlot(reservations, selected) : null),
+    [reservations, selected]
+  )
+
   const stats = useMemo(() => {
     const list = plots.filter((p) => p.cemeteryId === activeCemeteryId)
     return {
@@ -76,6 +132,11 @@ export function CemeteryMapPage() {
     }
   }, [activeCemeteryId, plots])
 
+  function selectPlot(plot: Plot | null) {
+    setSelectedId(plot?.id ?? null)
+    setStatusError(null)
+  }
+
   function locate() {
     const match = plots.find(
       (p) =>
@@ -83,7 +144,42 @@ export function CemeteryMapPage() {
         (p.plotNumber.toLowerCase() === search.toLowerCase() ||
           p.plotNumber.toLowerCase().includes(search.toLowerCase()))
     )
-    if (match) setSelected(match)
+    if (match) selectPlot(match)
+  }
+
+  async function changePlotStatus(plot: Plot, next: PlotStatus) {
+    if (next === plot.status || statusBusy) return
+    setStatusBusy(true)
+    setStatusError(null)
+    try {
+      const updated = await updatePlot(plot.id, {
+        status: next,
+        // Freeing a plot must also release the family it was held for.
+        ...(next === "Available" ? { reservedFor: "" } : {}),
+      })
+      updatePlotRow(updated)
+      setNotice(`Plot ${updated.plotNumber} is now ${updated.status}.`)
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setStatusBusy(false)
+    }
+  }
+
+  function viewReservation(reservation: Reservation | null) {
+    if (!reservation) {
+      setNotice("No reservation is linked to this plot yet.")
+      return
+    }
+    setReservationModal({ reservation, mode: "view" })
+  }
+
+  function reviewReservation(reservation: Reservation | null) {
+    if (!reservation) {
+      setNotice("No information-checking request is linked to this plot yet.")
+      return
+    }
+    setReservationModal({ reservation, mode: "review" })
   }
 
   const cemetery = cemeteries.find((c) => c.id === activeCemeteryId)
@@ -167,7 +263,7 @@ export function CemeteryMapPage() {
               onChange={(e) => {
                 setCemeteryId(e.target.value)
                 setSection("All")
-                setSelected(null)
+                setSelectedId(null)
               }}
               className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
             >
@@ -289,7 +385,14 @@ export function CemeteryMapPage() {
             exit="exit"
             className="grid gap-4 lg:grid-cols-[300px_1fr]"
           >
-            <PlotDetailsCard plot={selected} />
+            <PlotDetailsCard
+              plot={selected}
+              reservation={selectedReservation}
+              onReserve={setReservingPlot}
+              onViewReservation={viewReservation}
+              onReviewReservation={reviewReservation}
+              onViewDetails={setEditingPlot}
+            />
             <PlotMapCard
               plots={plots}
               cemeteryId={activeCemeteryId}
@@ -297,8 +400,13 @@ export function CemeteryMapPage() {
               section={section}
               status={status}
               selected={selected}
-              onSelect={setSelected}
+              onSelect={selectPlot}
               onBuildGrid={() => setBuilderOpen(true)}
+              onStatusChange={changePlotStatus}
+              statusBusy={statusBusy}
+              statusError={statusError}
+              sectionColumns={sectionColumns}
+              onSectionColumnsChange={setSectionColumns}
             />
           </motion.div>
         ) : (
@@ -317,6 +425,7 @@ export function CemeteryMapPage() {
       {builderOpen && (
         <PlotGridBuilderModal
           cemeteryId={activeCemeteryId}
+          initialSection={nextSection}
           onClose={() => setBuilderOpen(false)}
           onCreated={(message) => {
             setNotice(message)
@@ -326,6 +435,35 @@ export function CemeteryMapPage() {
             setBurialType("All")
             setSearch("")
           }}
+        />
+      )}
+
+      {reservingPlot && (
+        <CreateReservationModal
+          open
+          initialPlot={reservingPlot}
+          onClose={() => setReservingPlot(null)}
+          onCreated={(message) => {
+            setNotice(message)
+            setReservingPlot(null)
+          }}
+        />
+      )}
+
+      {reservationModal && (
+        <ReservationDetailsModal
+          key={`${reservationModal.reservation.id}-${reservationModal.mode}`}
+          reservation={reservationModal.reservation}
+          mode={reservationModal.mode}
+          onClose={() => setReservationModal(null)}
+          onUpdated={(message) => setNotice(message)}
+        />
+      )}
+
+      {editingPlot && (
+        <EditPlotModal
+          record={editingPlot}
+          onClose={() => setEditingPlot(null)}
         />
       )}
     </motion.div>

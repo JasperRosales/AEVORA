@@ -76,8 +76,10 @@ create table if not exists activities (
   date_time text not null, record text not null
 );
 create table if not exists notifications (
-  id text primary key, message text not null, type text not null, date_time text not null
+  id text primary key, message text not null, type text not null,
+  date_time text not null, is_read boolean not null default false
 );
+alter table notifications add column if not exists is_read boolean not null default false;
 create table if not exists generated_reports (
   id text primary key, name text not null, type text not null,
   date_generated text not null, generated_by text not null, status text not null
@@ -116,7 +118,10 @@ async function main() {
     await db
       .insert(schema.plots)
       .values({ ...p, reservedFor: p.reservedFor ?? null })
-      .onConflictDoUpdate({ target: schema.plots.id, set: { ...p, reservedFor: p.reservedFor ?? null } })
+      .onConflictDoUpdate({
+        target: schema.plots.id,
+        set: { ...p, reservedFor: p.reservedFor ?? null },
+      })
   }
 
   console.log(`Seeding ${reservations.length} reservations...`)
@@ -184,7 +189,7 @@ async function main() {
             (select count(*) from agreements) agreements,
             (select count(*) from activities) activities,
             (select count(*) from notifications) notifications,
-            (select count(*) from generated_reports) generated_reports`,
+            (select count(*) from generated_reports) generated_reports`
   )
   console.log("Row counts:", rows[0])
   await pool.end()
