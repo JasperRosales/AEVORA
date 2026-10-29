@@ -146,9 +146,9 @@ export function ReservationDetailsModal({
           </div>
           <div>
             <dt className="text-[10px] tracking-wide text-deep/50 uppercase">
-              Burial type
+              Plot type
             </dt>
-            <dd className="font-medium">{reservation.burialType}</dd>
+            <dd className="font-medium">{reservation.plotCategory}</dd>
           </div>
           <div>
             <dt className="text-[10px] tracking-wide text-deep/50 uppercase">

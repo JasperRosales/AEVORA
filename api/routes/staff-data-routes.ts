@@ -713,6 +713,8 @@ routes.patch("/plots/:id", staffGuard, async (c) => {
   if (!existing) return c.json({ error: "Unknown plot" }, 404)
 
   const size = str(body.size) || existing.size
+  const submittedType = body.type ?? body.category
+  const type = normalizePlotType(str(submittedType))
   let price = existing.price
   if (body.price !== undefined) {
     price = Number(body.price)
@@ -730,7 +732,7 @@ routes.patch("/plots/:id", staffGuard, async (c) => {
       size,
       price,
       status: oneOf(body.status, PLOT_STATUSES, existing.status),
-      type: oneOf(body.type, PLOT_CATEGORIES, existing.type),
+      type: oneOf(type, PLOT_CATEGORIES, existing.type),
       groupName:
         body.groupName === undefined
           ? existing.groupName

@@ -306,7 +306,7 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
   const [section, setSection] = useState("")
   const [row, setRow] = useState("")
   const [column, setColumn] = useState("")
-  const [category, setCategory] = useState<PlotCategory>("Typical Block")
+  const [plotType, setPlotType] = useState<PlotCategory>("Typical Block")
   const [size, setSize] = useState("")
   const [price, setPrice] = useState("")
   const [status, setStatus] = useState<PlotStatus>("Available")
@@ -323,7 +323,7 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
         section: section.trim(),
         row: Number(row),
         column: Number(column),
-        type: category,
+        type: plotType,
         size: size.trim(),
         price: Number(price),
         status,
@@ -367,13 +367,13 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
           </select>
         </div>
         <div>
-          <label className={LABEL} htmlFor="plot-category">
+          <label className={LABEL} htmlFor="plot-type">
             Type
           </label>
           <select
-            id="plot-category"
-            value={category}
-            onChange={(e) => setCategory(e.target.value as PlotCategory)}
+            id="plot-type"
+            value={plotType}
+            onChange={(e) => setPlotType(e.target.value as PlotCategory)}
             className={INPUT}
           >
             {PLOT_CATEGORIES.map((option) => (

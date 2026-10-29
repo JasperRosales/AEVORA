@@ -344,7 +344,7 @@ export function EditPlotModal({
     >
       {record && (
         <RecordForm
-          key={record.id}
+          key={`${record.id}:${record.type}:${record.size}:${record.price}:${record.status}:${record.reservedFor ?? ""}`}
           fields={PLOT_FIELDS}
           initialValues={{
             size: record.size,
