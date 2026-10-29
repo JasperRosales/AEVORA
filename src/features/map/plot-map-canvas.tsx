@@ -1,12 +1,4 @@
-import {
-  LayoutGrid,
-  Move,
-  Plus,
-  TreeDeciduous,
-  Waypoints,
-  ZoomIn,
-  ZoomOut,
-} from "lucide-react"
+import { LayoutGrid, Move, Plus, ZoomIn, ZoomOut } from "lucide-react"
 import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { plotStatusFill } from "@/lib/status"
@@ -22,10 +14,12 @@ export function PlotMapCard({
   plots,
   cemeteryId,
   burialType,
+  section,
   status,
+  search,
   selected,
   onSelect,
-  onBuildGrid,
+  onAddPlot,
   onStatusChange,
   statusBusy = false,
   statusError = null,
@@ -36,9 +30,10 @@ export function PlotMapCard({
   burialType: BurialType | "All"
   section: string
   status: PlotStatus | "All"
+  search: string
   selected: Plot | null
   onSelect: (plot: Plot | null) => void
-  onBuildGrid?: () => void
+  onAddPlot?: () => void
   onStatusChange: (plot: Plot, status: PlotStatus) => void
   statusBusy?: boolean
   statusError?: string | null
@@ -48,9 +43,6 @@ export function PlotMapCard({
   const [isDraggable, setIsDraggable] = useState(false)
   const [selectedPlots, setSelectedPlots] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
-  const [editMode, setEditMode] = useState<
-    "plots" | "roads" | "walls" | "trees"
-  >("plots")
 
   const mapData = useMemo(() => {
     const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
@@ -59,7 +51,7 @@ export function PlotMapCard({
         name: "All",
         plots: cemeteryPlots.map((p) => ({
           id: p.id,
-          label: p.plotNumber.replace(/^[^-]+-/, ""),
+          label: p.plotNumber,
           row: p.row,
           column: p.column,
           status: p.status,
@@ -67,17 +59,20 @@ export function PlotMapCard({
         })),
       },
     ]
+    const query = search.trim().toLowerCase()
     const visibleIds = new Set(
       cemeteryPlots
         .filter(
           (p) =>
             (burialType === "All" || p.type === burialType) &&
-            (status === "All" || p.status === status)
+            (section === "All" || p.section === section) &&
+            (status === "All" || p.status === status) &&
+            (!query || p.plotNumber.toLowerCase().includes(query))
         )
         .map((p) => p.id)
     )
     return { sections, visibleIds }
-  }, [plots, cemeteryId, burialType, status])
+  }, [plots, cemeteryId, burialType, section, status, search])
 
   if (mapData.sections.length === 0) {
     return (
@@ -92,14 +87,6 @@ export function PlotMapCard({
               Build a grid to create a whole block of plots at once.
             </p>
           </div>
-          {onBuildGrid && (
-            <button
-              onClick={onBuildGrid}
-              className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-cream transition hover:bg-deep"
-            >
-              Build plot grid
-            </button>
-          )}
         </div>
       </Card>
     )
@@ -129,31 +116,6 @@ export function PlotMapCard({
           >
             <ZoomIn size={13} />
           </button>
-          <div className="flex overflow-hidden rounded-lg border border-deep/30">
-            {[
-              { mode: "plots" as const, label: "Plots", icon: LayoutGrid },
-              { mode: "roads" as const, label: "Roads", icon: Waypoints },
-              { mode: "walls" as const, label: "Walls", icon: null },
-              { mode: "trees" as const, label: "Trees", icon: TreeDeciduous },
-            ].map(({ mode, label, icon: Icon }) => (
-              <button
-                key={mode}
-                type="button"
-                onClick={() => setEditMode(mode)}
-                className={`flex items-center gap-1 px-2.5 py-1.5 text-xs transition ${
-                  editMode === mode
-                    ? "bg-deep text-cream"
-                    : "text-navy hover:bg-deep/5"
-                }`}
-              >
-                {Icon && <Icon size={12} />}
-                {!Icon && mode === "walls" && (
-                  <span className="text-xs">▭</span>
-                )}
-                {label}
-              </button>
-            ))}
-          </div>
           <button
             type="button"
             onClick={() => setIsDraggable(!isDraggable)}
@@ -163,13 +125,13 @@ export function PlotMapCard({
           >
             <Move size={13} /> {isDraggable ? "Done" : "Move"}
           </button>
-          {onBuildGrid && (
+          {onAddPlot && (
             <button
               type="button"
-              onClick={onBuildGrid}
+              onClick={onAddPlot}
               className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
             >
-              <Plus size={13} /> Add plots
+              <Plus size={13} /> Add plot
             </button>
           )}
         </div>
@@ -241,7 +203,7 @@ export function PlotMapCard({
             sectionColumns={sectionColumns}
             selectedId={selected?.id ?? null}
             onSelect={(id) => {
-              if (isDraggable || editMode !== "plots") {
+              if (isDraggable) {
                 const plot = plots.find((p) => p.id === id)
                 if (plot) {
                   const newSet = new Set(selectedPlots)
@@ -256,19 +218,16 @@ export function PlotMapCard({
               if (plot) onSelect(plot)
             }}
             onBackgroundClick={() => {
-              if (editMode === "plots" && !isDraggable) onSelect(null)
-              if (editMode === "plots") setSelectedPlots(new Set())
+              if (!isDraggable) onSelect(null)
+              setSelectedPlots(new Set())
             }}
-            isDimmed={(plot: LandMapPlot) =>
-              editMode === "plots" ? !mapData.visibleIds.has(plot.id) : false
-            }
+            isDimmed={(plot: LandMapPlot) => !mapData.visibleIds.has(plot.id)}
             ariaLabel="Cemetery plot map"
             draggable={isDraggable}
             unified={true}
             customCols={undefined}
-            plotDraggable={isDraggable && editMode === "plots"}
+            plotDraggable={isDraggable}
             selectedPlots={selectedPlots}
-            editMode={editMode}
           />
         </div>
       </div>

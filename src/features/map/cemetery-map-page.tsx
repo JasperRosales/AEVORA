@@ -4,7 +4,6 @@ import {
   CheckCircle,
   Clock,
   Home,
-  Plus,
   Search,
 } from "lucide-react"
 import { useMemo, useState } from "react"
@@ -90,12 +89,14 @@ export function CemeteryMapPage() {
           p.cemeteryId === activeCemeteryId &&
           (burialType === "All" || p.type === burialType) &&
           (section === "All" || p.section === section) &&
-          (status === "All" || p.status === status)
+          (status === "All" || p.status === status) &&
+          (!search.trim() ||
+            p.plotNumber.toLowerCase().includes(search.trim().toLowerCase()))
       ),
-    [activeCemeteryId, burialType, section, status, plots]
+    [activeCemeteryId, burialType, section, status, search, plots]
   )
 
-  // Pre-fill the builder with the first unused section letter, so "Add plots"
+  // Pre-fill the form with the first unused section letter, so "Add plot"
   // creates a new parcel instead of extending section A by accident.
   const nextSection = useMemo(() => {
     const used = new Set(sections)
@@ -135,16 +136,6 @@ export function CemeteryMapPage() {
   function selectPlot(plot: Plot | null) {
     setSelectedId(plot?.id ?? null)
     setStatusError(null)
-  }
-
-  function locate() {
-    const match = plots.find(
-      (p) =>
-        p.cemeteryId === activeCemeteryId &&
-        (p.plotNumber.toLowerCase() === search.toLowerCase() ||
-          p.plotNumber.toLowerCase().includes(search.toLowerCase()))
-    )
-    if (match) selectPlot(match)
   }
 
   async function changePlotStatus(plot: Plot, next: PlotStatus) {
@@ -216,7 +207,7 @@ export function CemeteryMapPage() {
               trend: { up: false, text: "3%" },
             },
             {
-              label: "Plots Pending Verification",
+              label: "Plots to Verify",
               value: stats.pending,
               icon: Clock,
               trend: { up: true, text: "4%" },
@@ -333,15 +324,6 @@ export function CemeteryMapPage() {
             >
               Clear Filters
             </button>
-            <button onClick={locate} className="neu-button px-3 py-1.5 text-sm">
-              Locate
-            </button>
-            <button
-              onClick={() => setBuilderOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-navy px-3 py-1.5 text-sm font-semibold text-cream transition hover:bg-deep"
-            >
-              <Plus size={14} /> Build Plot Grid
-            </button>
             <div className="ml-auto flex overflow-hidden rounded-lg border border-deep/30">
               {(["Map", "List"] as const).map((v) => (
                 <button
@@ -399,9 +381,10 @@ export function CemeteryMapPage() {
               burialType={burialType}
               section={section}
               status={status}
+              search={search}
               selected={selected}
               onSelect={selectPlot}
-              onBuildGrid={() => setBuilderOpen(true)}
+              onAddPlot={() => setBuilderOpen(true)}
               onStatusChange={changePlotStatus}
               statusBusy={statusBusy}
               statusError={statusError}
@@ -429,7 +412,7 @@ export function CemeteryMapPage() {
           onClose={() => setBuilderOpen(false)}
           onCreated={(message) => {
             setNotice(message)
-            // Clear filters so the new block is fully visible on the map.
+            // Clear filters so the new plots are fully visible on the map.
             setSection("All")
             setStatus("All")
             setBurialType("All")

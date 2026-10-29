@@ -473,34 +473,6 @@ export function PlotLandMap({
         />
       )}
 
-      {/* North marker and entrance label give the drawing a site-plan feel. */}
-      <g transform={`translate(${drawing.width - 22}, 12)`} opacity={0.45}>
-        <path
-          d="M0 10 L0 0 M-3 3 L0 0 L3 3"
-          fill="none"
-          stroke="#102B52"
-          strokeWidth={1.2}
-        />
-        <text
-          x={0}
-          y={-2}
-          textAnchor="middle"
-          fill="#102B52"
-          style={{ fontSize: 7, fontWeight: 600 }}
-        >
-          N
-        </text>
-      </g>
-      <text
-        x={drawing.width / 2}
-        y={drawing.height - 9}
-        textAnchor="middle"
-        fill="#102B52"
-        opacity={0.4}
-        style={{ fontSize: 7, letterSpacing: 1 }}
-      >
-        MAIN ENTRANCE
-      </text>
 
       {/* Sections and their plots */}
       {drawing.sections.map((section) => {
