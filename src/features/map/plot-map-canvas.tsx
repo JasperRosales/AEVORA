@@ -1,4 +1,12 @@
-import { LayoutGrid, Move, Plus, TreeDeciduous, Waypoints, ZoomIn, ZoomOut } from "lucide-react"
+import {
+  LayoutGrid,
+  Move,
+  Plus,
+  TreeDeciduous,
+  Waypoints,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { plotStatusFill } from "@/lib/status"
@@ -7,13 +15,6 @@ import { PlotLandMap, type LandMapPlot } from "./plot-land-map"
 
 const STATUSES = Object.keys(plotStatusFill) as PlotStatus[]
 
-const collator = new Intl.Collator(undefined, { numeric: true })
-
-function shortLabel(plotNumber: string): string {
-  const dash = plotNumber.indexOf("-")
-  return dash === -1 ? plotNumber : plotNumber.slice(dash + 1)
-}
-
 /**
  * The staff site-plan map. All plots displayed freely for customization.
  */
@@ -21,7 +22,6 @@ export function PlotMapCard({
   plots,
   cemeteryId,
   burialType,
-  section,
   status,
   selected,
   onSelect,
@@ -30,7 +30,6 @@ export function PlotMapCard({
   statusBusy = false,
   statusError = null,
   sectionColumns,
-  onSectionColumnsChange,
 }: {
   plots: Plot[]
   cemeteryId: string
@@ -49,7 +48,9 @@ export function PlotMapCard({
   const [isDraggable, setIsDraggable] = useState(false)
   const [selectedPlots, setSelectedPlots] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
-  const [editMode, setEditMode] = useState<"plots" | "roads" | "walls" | "trees">("plots")
+  const [editMode, setEditMode] = useState<
+    "plots" | "roads" | "walls" | "trees"
+  >("plots")
 
   const mapData = useMemo(() => {
     const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
@@ -58,7 +59,7 @@ export function PlotMapCard({
         name: "All",
         plots: cemeteryPlots.map((p) => ({
           id: p.id,
-          label: p.plotNumber.replace(/^[^-]+-/, ''),
+          label: p.plotNumber.replace(/^[^-]+-/, ""),
           row: p.row,
           column: p.column,
           status: p.status,
@@ -117,7 +118,9 @@ export function PlotMapCard({
           >
             <ZoomOut size={13} />
           </button>
-          <span className="text-xs text-deep/60">{Math.round(zoom * 100)}%</span>
+          <span className="text-xs text-deep/60">
+            {Math.round(zoom * 100)}%
+          </span>
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(3, z + 0.1))}
@@ -144,7 +147,9 @@ export function PlotMapCard({
                 }`}
               >
                 {Icon && <Icon size={12} />}
-                {!Icon && mode === "walls" && <span className="text-xs">▭</span>}
+                {!Icon && mode === "walls" && (
+                  <span className="text-xs">▭</span>
+                )}
                 {label}
               </button>
             ))}
@@ -153,9 +158,7 @@ export function PlotMapCard({
             type="button"
             onClick={() => setIsDraggable(!isDraggable)}
             className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium transition ${
-              isDraggable
-                ? "bg-navy text-cream"
-                : "neu-button"
+              isDraggable ? "bg-navy text-cream" : "neu-button"
             }`}
           >
             <Move size={13} /> {isDraggable ? "Done" : "Move"}
@@ -195,7 +198,9 @@ export function PlotMapCard({
                     if (selected) onStatusChange(selected, option)
                   }}
                   className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                    active ? "ring-2 ring-navy ring-offset-1 ring-offset-cream" : ""
+                    active
+                      ? "ring-2 ring-navy ring-offset-1 ring-offset-cream"
+                      : ""
                   } ${dark ? "text-deep/70" : "text-white/90"}`}
                   style={{
                     backgroundColor: fill.fill,
@@ -220,8 +225,17 @@ export function PlotMapCard({
         )}
       </div>
 
-      <div className="overflow-auto rounded-xl" style={{ maxHeight: "600px", background: "#f8f6f0" }}>
-        <div style={{ transform: `scale(${zoom})`, transformOrigin: "top left", width: `${100 / zoom}%` }}>
+      <div
+        className="overflow-auto rounded-xl"
+        style={{ maxHeight: "600px", background: "#f8f6f0" }}
+      >
+        <div
+          style={{
+            transform: `scale(${zoom})`,
+            transformOrigin: "top left",
+            width: `${100 / zoom}%`,
+          }}
+        >
           <PlotLandMap
             sections={mapData.sections}
             sectionColumns={sectionColumns}
@@ -245,7 +259,9 @@ export function PlotMapCard({
               if (editMode === "plots" && !isDraggable) onSelect(null)
               if (editMode === "plots") setSelectedPlots(new Set())
             }}
-            isDimmed={(plot: LandMapPlot) => editMode === "plots" ? !mapData.visibleIds.has(plot.id) : false}
+            isDimmed={(plot: LandMapPlot) =>
+              editMode === "plots" ? !mapData.visibleIds.has(plot.id) : false
+            }
             ariaLabel="Cemetery plot map"
             draggable={isDraggable}
             unified={true}

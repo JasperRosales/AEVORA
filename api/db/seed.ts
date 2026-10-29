@@ -5,11 +5,11 @@
  *
  * Usage: npx tsx api/db/seed.ts   (reads DATABASE_URL from .env / .env.local)
  */
-import { readFileSync } from "node:fs"
-import { resolve } from "node:path"
 import { Pool } from "pg"
 import { drizzle } from "drizzle-orm/node-postgres"
 import * as schema from "./schema"
+import { DDL } from "./ddl"
+import { loadDotenv } from "./load-env"
 import {
   activities,
   agreements,
@@ -21,76 +21,6 @@ import {
   plots,
   reservations,
 } from "./seed-data"
-
-function loadDotenv(): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const file of [".env", ".env.local"]) {
-    try {
-      const text = readFileSync(resolve(process.cwd(), file), "utf8")
-      for (const line of text.split("\n")) {
-        const m = line.match(/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/)
-        if (m) out[m[1]] = m[2].replace(/^["']|["']$/g, "")
-      }
-    } catch {
-      /* file absent — fine */
-    }
-  }
-  return out
-}
-
-const DDL = `
-create table if not exists cemeteries (
-  id text primary key, name text not null, location text not null
-);
-create table if not exists plots (
-  id text primary key, plot_number text not null,
-  cemetery_id text not null references cemeteries(id),
-  section text not null, "row" integer not null, "column" integer not null,
-  type text not null, size text not null, price integer not null,
-  status text not null, reserved_for text
-);
-create table if not exists reservations (
-  id text primary key, reservation_number text not null, client_name text not null,
-  cemetery_id text not null references cemeteries(id), plot_number text not null,
-  date text not null, burial_type text not null, status text not null,
-  verification text not null
-);
-create table if not exists clients (
-  id text primary key, client_id text not null, full_name text not null,
-  contact_number text not null, email text not null, type text not null,
-  registered_at text not null, status text not null, reservations integer not null
-);
-create table if not exists payments (
-  id text primary key, receipt_number text not null, client_name text not null,
-  plot_number text not null, type text not null, amount integer not null,
-  date text not null, status text not null, method text not null,
-  cemetery_id text not null references cemeteries(id)
-);
-create table if not exists agreements (
-  id text primary key, agreement_number text not null, client_name text not null,
-  plot_number text not null, cemetery_id text not null references cemeteries(id),
-  type text not null, date_signed text not null, status text not null
-);
-create table if not exists activities (
-  id text primary key, action text not null, "user" text not null,
-  date_time text not null, record text not null
-);
-create table if not exists notifications (
-  id text primary key, message text not null, type text not null,
-  date_time text not null, is_read boolean not null default false
-);
-alter table notifications add column if not exists is_read boolean not null default false;
-create table if not exists generated_reports (
-  id text primary key, name text not null, type text not null,
-  date_generated text not null, generated_by text not null, status text not null
-);
-create table if not exists attachments (
-  id text primary key,
-  reservation_id text not null references reservations(id),
-  key text not null, filename text not null, content_type text not null,
-  size integer not null, created_at timestamptz not null default now()
-);
-`
 
 async function main() {
   const env = { ...loadDotenv(), ...process.env }

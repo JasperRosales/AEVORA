@@ -2,6 +2,7 @@ import { Hono } from "hono"
 import { eq } from "drizzle-orm"
 import { attachmentGuard, authGuard, ownsReservation, type AppEnv } from "../lib/auth"
 import { db } from "../lib/db"
+import { notifyStaff } from "../lib/notifications"
 import { deleteObject, putObject, signDownloadUrl } from "../lib/storage"
 import * as schema from "../db/schema"
 
@@ -56,6 +57,16 @@ routes.post("/reservations/:id/attachments", async (c) => {
       size: file.size,
     })
     .returning()
+
+  // Only client uploads are portal events; staff uploads on a client's behalf
+  // are already visible to the office.
+  const caller = c.get("caller")
+  if (caller.role === "client") {
+    await notifyStaff(
+      `Document "${file.name}" uploaded by ${reservation.clientName} — reservation ${reservation.reservationNumber}`,
+      "verification"
+    )
+  }
 
   return c.json({ ...row, url: await signDownloadUrl(key) }, 201)
 })

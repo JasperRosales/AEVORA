@@ -69,18 +69,18 @@ function layoutUnified(sections: LandMapSection[], customCols?: number) {
   for (const section of sections) {
     allPlots.push(...section.plots)
   }
-  
+
   if (allPlots.length === 0) {
     return { sections: [], width: 320, height: 220 }
   }
-  
+
   // Use a fixed reasonable grid layout - 15 columns by default
-  const cols = 15
+  const cols = Math.max(1, Math.floor(customCols ?? 15))
   const rows = Math.ceil(allPlots.length / cols)
-  
+
   const gridWidth = cols * CELL + (cols - 1) * CELL_GAP
   const gridHeight = rows * CELL + (rows - 1) * CELL_GAP
-  
+
   const unifiedSection: PositionedSection = {
     name: "Plots",
     plots: allPlots,
@@ -91,7 +91,7 @@ function layoutUnified(sections: LandMapSection[], customCols?: number) {
     x: LAND_PAD,
     y: LAND_PAD,
   }
-  
+
   return {
     sections: [unifiedSection],
     width: Math.max(320, unifiedSection.width + LAND_PAD * 2),
@@ -180,22 +180,29 @@ export function PlotLandMap({
   const bgId = `bg-image-${rawId.replace(/:/g, "")}`
   const perRow = Math.max(1, Math.min(4, sectionColumns))
   const autoLayout = useMemo(
-    () => (unified ? layoutUnified(sections, customCols) : layout(sections, perRow)),
+    () =>
+      unified ? layoutUnified(sections, customCols) : layout(sections, perRow),
     [sections, perRow, unified, customCols]
   )
 
   // Manual positions for draggable elements
-  const [manualPositions, setManualPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [manualPositions, setManualPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({})
   const [dragging, setDragging] = useState<string | null>(null)
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
-  const [plotPositions, setPlotPositions] = useState<Record<string, { x: number; y: number }>>({})
+  const [plotPositions, setPlotPositions] = useState<
+    Record<string, { x: number; y: number }>
+  >({})
   const [draggingPlot, setDraggingPlot] = useState<string | null>(null)
   const plotDragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const [elements, setElements] = useState<MapElement[]>(() => {
     try {
-      const saved = localStorage.getItem('aevora-map-elements')
+      const saved = localStorage.getItem("aevora-map-elements")
       if (saved) return JSON.parse(saved)
-    } catch {}
+    } catch {
+      // localStorage can be unavailable in private or embedded contexts.
+    }
     return mapElements
   })
   const [draggingElement, setDraggingElement] = useState<string | null>(null)
@@ -213,7 +220,11 @@ export function PlotLandMap({
     })
     // Recalculate bounds
     if (positioned.length === 0) {
-      return { sections: positioned, width: autoLayout.width, height: autoLayout.height }
+      return {
+        sections: positioned,
+        width: autoLayout.width,
+        height: autoLayout.height,
+      }
     }
     let maxX = 0
     let maxY = 0
@@ -245,7 +256,7 @@ export function PlotLandMap({
     e.stopPropagation()
     const section = drawing.sections.find((s) => s.name === sectionName)
     if (!section) return
-    const svg = e.currentTarget.ownerSVGElement
+    const svg = (e.currentTarget as SVGGElement).ownerSVGElement
     if (!svg) return
     const pt = svg.createSVGPoint()
     pt.x = e.clientX
@@ -261,7 +272,7 @@ export function PlotLandMap({
   const handleMouseDownPlot = (e: React.MouseEvent, plotId: string) => {
     if (!plotDraggable) return
     e.stopPropagation()
-    const svg = e.currentTarget.ownerSVGElement
+    const svg = (e.currentTarget as SVGGElement).ownerSVGElement
     if (!svg) return
     const pt = svg.createSVGPoint()
     pt.x = e.clientX
@@ -278,7 +289,7 @@ export function PlotLandMap({
   const handleMouseDownElement = (e: React.MouseEvent, elementId: string) => {
     e.stopPropagation()
     setSelectedElement(elementId)
-    const svg = e.currentTarget.ownerSVGElement
+    const svg = (e.currentTarget as SVGGElement).ownerSVGElement
     if (!svg) return
     const pt = svg.createSVGPoint()
     pt.x = e.clientX
@@ -294,7 +305,7 @@ export function PlotLandMap({
   }
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const svg = e.currentTarget
+    const svg = e.currentTarget as SVGSVGElement
     const pt = svg.createSVGPoint()
     pt.x = e.clientX
     pt.y = e.clientY
@@ -328,11 +339,15 @@ export function PlotLandMap({
       const newY = svgP.y - elementDragOffset.current.y
       setElements((prev) => {
         const updated = prev.map((el) =>
-          el.id === draggingElement ? { ...el, x: Math.max(0, newX), y: Math.max(0, newY) } : el
+          el.id === draggingElement
+            ? { ...el, x: Math.max(0, newX), y: Math.max(0, newY) }
+            : el
         )
         try {
-          localStorage.setItem('aevora-map-elements', JSON.stringify(updated))
-        } catch {}
+          localStorage.setItem("aevora-map-elements", JSON.stringify(updated))
+        } catch {
+          // localStorage can be unavailable in private or embedded contexts.
+        }
         if (onMapElementsChange) onMapElementsChange(updated)
         return updated
       })
@@ -360,8 +375,10 @@ export function PlotLandMap({
     const updated = elements.filter((el) => el.id !== selectedElement)
     setElements(updated)
     try {
-      localStorage.setItem('aevora-map-elements', JSON.stringify(updated))
-    } catch {}
+      localStorage.setItem("aevora-map-elements", JSON.stringify(updated))
+    } catch {
+      // localStorage can be unavailable in private or embedded contexts.
+    }
     if (onMapElementsChange) onMapElementsChange(updated)
     setSelectedElement(null)
   }
@@ -370,14 +387,19 @@ export function PlotLandMap({
     if (onBackgroundClick) onBackgroundClick()
     setSelectedElement(null)
     if (editMode !== "plots") {
-      const svg = e.currentTarget
+      const svg = e.currentTarget as SVGSVGElement
       const pt = svg.createSVGPoint()
       pt.x = e.clientX
       pt.y = e.clientY
       const svgP = pt.matrixTransform(svg.getScreenCTM()?.inverse())
       const newEl: MapElement = {
         id: `el-${Date.now()}`,
-        type: editMode === "roads" ? "road" : editMode === "walls" ? "wall" : "tree",
+        type:
+          editMode === "roads"
+            ? "road"
+            : editMode === "walls"
+              ? "wall"
+              : "tree",
         x: svgP.x,
         y: svgP.y,
         width: editMode === "roads" ? 60 : editMode === "walls" ? 4 : 16,
@@ -386,8 +408,10 @@ export function PlotLandMap({
       const updated = [...elements, newEl]
       setElements(updated)
       try {
-        localStorage.setItem('aevora-map-elements', JSON.stringify(updated))
-      } catch {}
+        localStorage.setItem("aevora-map-elements", JSON.stringify(updated))
+      } catch {
+        // localStorage can be unavailable in private or embedded contexts.
+      }
       if (onMapElementsChange) onMapElementsChange(updated)
     }
   }
@@ -396,7 +420,10 @@ export function PlotLandMap({
     <svg
       viewBox={`0 0 ${drawing.width} ${drawing.height}`}
       className="block h-auto w-full"
-      style={{ aspectRatio: `${drawing.width} / ${drawing.height}`, background: "#f8f6f0" }}
+      style={{
+        aspectRatio: `${drawing.width} / ${drawing.height}`,
+        background: "#f8f6f0",
+      }}
       role="img"
       aria-label={ariaLabel}
       onClick={handleSvgClick}
@@ -437,11 +464,7 @@ export function PlotLandMap({
       </defs>
 
       {/* Land / Background */}
-      <rect
-        width={drawing.width}
-        height={drawing.height}
-        fill="#f8f6f0"
-      />
+      <rect width={drawing.width} height={drawing.height} fill="#f8f6f0" />
       {backgroundImage && (
         <rect
           width={drawing.width}
@@ -481,19 +504,6 @@ export function PlotLandMap({
 
       {/* Sections and their plots */}
       {drawing.sections.map((section) => {
-        const showLabels = section.columns <= 12 && section.rows <= 12
-        const compact = section.width < 90
-        const visible = section.plots.filter(
-          (plot) => !(isDimmed?.(plot) ?? false)
-        )
-        const available = visible.filter(
-          (plot) => plot.status === "Available"
-        ).length
-        const summary =
-          visible.length === 0
-            ? "No matching plots"
-            : `${available} of ${visible.length} available`
-
         return (
           <g
             key={section.name}
@@ -524,19 +534,18 @@ export function PlotLandMap({
 
             {section.plots.map((plot) => {
               const fill = plotStatusFill[plot.status]
-              const selected = selectedId === plot.id || selectedPlots.has(plot.id)
+              const selected =
+                selectedId === plot.id || selectedPlots.has(plot.id)
               const dimmed = isDimmed?.(plot) ?? false
               const darkText =
                 plot.status === "Unavailable" ||
                 plot.status === "Waiting for Checking"
-              const idx = section.plots.findIndex(p => p.id === plot.id)
+              const idx = section.plots.findIndex((p) => p.id === plot.id)
               const calcCol = idx % section.columns
               const calcRow = Math.floor(idx / section.columns)
               const basePx = SECTION_PAD + calcCol * (CELL + CELL_GAP)
               const basePy =
-                SECTION_PAD +
-                SECTION_HEADER +
-                calcRow * (CELL + CELL_GAP)
+                SECTION_PAD + SECTION_HEADER + calcRow * (CELL + CELL_GAP)
               const customPos = plotPositions[plot.id]
               const px = customPos ? customPos.x : basePx
               const py = customPos ? customPos.y : basePy
@@ -545,7 +554,9 @@ export function PlotLandMap({
                 <g
                   key={plot.id}
                   opacity={selected ? 1 : dimmed ? 0.3 : 0.95}
-                  className={onSelect || plotDraggable ? "cursor-pointer" : undefined}
+                  className={
+                    onSelect || plotDraggable ? "cursor-pointer" : undefined
+                  }
                   onMouseDown={(e) => {
                     if (plotDraggable) {
                       handleMouseDownPlot(e, plot.id)
@@ -558,11 +569,11 @@ export function PlotLandMap({
                           onSelect(plot.id)
                         }
                       : plotDraggable && onSelect
-                      ? (event) => {
-                          event.stopPropagation()
-                          onSelect(plot.id)
-                        }
-                      : undefined
+                        ? (event) => {
+                            event.stopPropagation()
+                            onSelect(plot.id)
+                          }
+                        : undefined
                   }
                 >
                   <title>{`Plot ${plot.label} — ${plot.status}`}</title>
@@ -641,7 +652,7 @@ export function PlotLandMap({
       ))}
       {selectedElement && (
         <foreignObject x={10} y={10} width={80} height={30}>
-          <div xmlns="http://www.w3.org/1999/xhtml">
+          <div>
             <button
               onClick={removeElement}
               style={{

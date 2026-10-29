@@ -1,7 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { BellOff, CheckCheck, Mail, MailOpen, Trash2 } from "lucide-react"
 import { Modal } from "@/components/ui/modal"
 import {
+  refreshNotifications,
   removeNotification,
   updateNotificationRow,
   updateNotificationRows,
@@ -25,10 +26,11 @@ function isMissingNotification(err: unknown): boolean {
 }
 
 /**
- * Header notification centre. Rows can be marked read/unread or deleted, and
- * "Mark all read" applies the change to every unread notification. Each action
- * PATCHes/DELETEs the row and mirrors the response into the shared store, so
- * the header badge and the Overview notifications card update immediately.
+ * Header notification centre. Opening it re-reads the feed from Postgres;
+ * rows can then be marked read/unread or deleted, and "Mark all read" applies
+ * the change to every unread notification. Each action PATCHes/DELETEs the row
+ * and mirrors the response into the shared store, so the header badge updates
+ * immediately.
  */
 export function NotificationsModal({
   notifications,
@@ -43,8 +45,26 @@ export function NotificationsModal({
   } | null>(null)
   const [pendingAll, setPendingAll] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(true)
 
-  const busy = pending !== null || pendingAll
+  // The modal is the source of truth for the current feed: re-read it from
+  // Postgres on open so changes made elsewhere are picked up, then mirror any
+  // row actions below into the shared store.
+  useEffect(() => {
+    let active = true
+    refreshNotifications()
+      .catch((err) => {
+        if (active) setError(errorMessage(err))
+      })
+      .finally(() => {
+        if (active) setRefreshing(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const busy = pending !== null || pendingAll || refreshing
   const unreadCount = notifications.filter((n) => !n.read).length
   const ordered = [...notifications].sort((a, b) =>
     b.dateTime.localeCompare(a.dateTime)
@@ -129,7 +149,9 @@ export function NotificationsModal({
       title="Notifications"
       description={
         notifications.length === 0
-          ? "No notifications yet."
+          ? refreshing
+            ? "Loading from the database..."
+            : "No notifications yet."
           : unreadCount > 0
             ? `${unreadCount} unread of ${notifications.length}`
             : "All caught up"
@@ -162,7 +184,9 @@ export function NotificationsModal({
           <div className="flex flex-col items-center gap-2 py-10 text-center">
             <BellOff size={28} className="text-deep/30" />
             <p className="text-sm text-deep/60">
-              No notifications. You&apos;re all caught up.
+              {refreshing
+                ? "Loading notifications..."
+                : "No notifications. You're all caught up."}
             </p>
           </div>
         ) : (

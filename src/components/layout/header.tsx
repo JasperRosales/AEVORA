@@ -1,10 +1,13 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Bell, LogOut } from "lucide-react"
 import { AnimatePresence, motion } from "motion/react"
 import { signOut, useSession } from "@/data/session"
-import { useData } from "@/data/store"
+import { refreshNotifications, useData } from "@/data/store"
+import { isNeonConfigured } from "@/lib/neon-api"
 import { EASE_OUT, layoutSpring } from "@/lib/motion"
 import { NotificationsModal } from "./notifications-modal"
+
+const NOTIFICATION_POLL_MS = 15_000
 
 export function Header({ title }: { title: string }) {
   const { notifications } = useData()
@@ -17,6 +20,39 @@ export function Header({ title }: { title: string }) {
     .slice(0, 2)
     .join("")
     .toUpperCase()
+
+  // Keep the bell badge current while the dashboard is open so client actions
+  // (bookings, payments, uploads) appear without a page reload. Polling pauses
+  // while the modal is open, because the modal owns the feed then.
+  useEffect(() => {
+    if (notificationsOpen || !isNeonConfigured) return
+    let disposed = false
+    let inFlight = false
+    const refresh = async () => {
+      if (disposed || inFlight || document.visibilityState === "hidden") return
+      inFlight = true
+      try {
+        await refreshNotifications()
+      } catch {
+        // Transient network/auth failures are ignored; the next tick retries.
+      } finally {
+        inFlight = false
+      }
+    }
+    void refresh()
+    const timer = window.setInterval(() => void refresh(), NOTIFICATION_POLL_MS)
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void refresh()
+    }
+    window.addEventListener("focus", onVisible)
+    document.addEventListener("visibilitychange", onVisible)
+    return () => {
+      disposed = true
+      window.clearInterval(timer)
+      window.removeEventListener("focus", onVisible)
+      document.removeEventListener("visibilitychange", onVisible)
+    }
+  }, [notificationsOpen])
 
   return (
     <motion.header

@@ -51,17 +51,28 @@ npm run preview    # serve the production build locally
 npm run lint       # ESLint
 npm run format     # Prettier (writes TS/TSX files)
 npm run typecheck  # tsc --noEmit
+npm run db:migrate # apply the idempotent schema DDL (no rows touched)
+npm run db:seed    # apply the schema and load the starter dataset
 ```
 
-## Seeding the database
+## Migrating and seeding the database
 
-The app itself never writes business records — the database is loaded once by the seed script:
+`api/db/ddl.ts` holds the idempotent schema. Apply it to an existing branch
+after a schema change without touching any rows:
 
 ```bash
-npx tsx api/db/seed.ts
+npm run db:migrate
 ```
 
-This creates the schema (Drizzle, `api/db/schema.ts`) in the linked Neon branch and inserts the starter dataset from `api/db/seed-data/` (cemeteries, plots, reservations, clients, payments, agreements, activities, notifications, reports).
+For a fresh branch, load the starter dataset as well (this runs the same DDL
+first):
+
+```bash
+npm run db:seed
+```
+
+Both scripts read `DATABASE_URL_UNPOOLED` (preferred) or `DATABASE_URL` from
+`.env` / `.env.local`, and use the tables declared in `api/db/schema.ts`.
 
 ## Signing in
 

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import { Hono, type Context } from "hono"
 import { authGuard, clientRowFor, type AppEnv, type Caller } from "../lib/auth"
 import { pool } from "../lib/db"
+import { notifyStaff, pesos } from "../lib/notifications"
 import { isDate, nextCode, oneOf, str, today } from "../lib/records"
 import { signDownloadUrl } from "../lib/storage"
 
@@ -216,6 +217,11 @@ routes.post("/client/reservations", async (c) => {
     )
     await conn.query("commit")
 
+    await notifyStaff(
+      `New reservation ${created.rows[0].reservation_number} from ${name} — plot ${plot.plot_number}, ${plot.cemetery}`,
+      "reservation"
+    )
+
     return c.json(
       {
         ...created.rows[0],
@@ -331,6 +337,11 @@ routes.post("/client/payments", async (c) => {
       oneOf(body.method, PAYMENT_METHODS, "Online"),
       reservation.cemetery_id,
     ]
+  )
+
+  await notifyStaff(
+    `Payment ${inserted.rows[0].receipt_number} of ${pesos(amount)} from ${name} — plot ${reservation.plot_number}, ${reservation.cemetery}`,
+    "payment"
   )
 
   return c.json({ ...inserted.rows[0], cemetery: reservation.cemetery }, 201)

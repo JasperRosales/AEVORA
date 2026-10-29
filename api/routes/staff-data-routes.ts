@@ -87,8 +87,14 @@ routes.get("/activities", staffGuard, async (c) =>
   c.json(await db.select().from(schema.activities))
 )
 
+// Newest first so the header feeds and Overview card agree on ordering.
 routes.get("/notifications", staffGuard, async (c) =>
-  c.json(await db.select().from(schema.notifications))
+  c.json(
+    await db
+      .select()
+      .from(schema.notifications)
+      .orderBy(desc(schema.notifications.dateTime))
+  )
 )
 
 // Newest first so a freshly generated report lands on page one, with the most

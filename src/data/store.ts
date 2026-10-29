@@ -13,6 +13,7 @@ import type {
 import {
   fetchAll,
   fetchAttachments,
+  fetchNotifications,
   isNeonConfigured,
   uploadAttachment,
   type Attachment,
@@ -250,6 +251,17 @@ export function updateReportRow(row: GeneratedReport) {
 
 export function removeReport(id: string) {
   set({ generatedReports: state.generatedReports.filter((r) => r.id !== id) })
+}
+
+/**
+ * Re-reads the notification feed from Postgres. The header centre calls this
+ * when it opens so rows changed in another tab (or by another staff member)
+ * are reflected instead of showing the snapshot loaded at sign-in.
+ */
+export async function refreshNotifications(): Promise<AppNotification[]> {
+  const rows = await fetchNotifications()
+  set({ notifications: rows })
+  return rows
 }
 
 export function updateNotificationRow(row: AppNotification) {

@@ -7,7 +7,7 @@ import type { DashboardProps } from "@/features/lazy-routes"
 import { ReservationDetailsModal } from "@/features/shared/reservation-review-modal"
 import { fadeUp, stagger } from "@/lib/motion"
 import type { Reservation } from "@/types/domain"
-import { NotificationsCard, RecentActivityCard } from "./overview-info-cards"
+import { RecentActivityCard } from "./overview-info-cards"
 import { OverviewKpis } from "./overview-kpis"
 import { OccupancyCard } from "./overview-occupancy"
 import {
@@ -29,7 +29,6 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
   const {
     activities,
     agreements,
-    notifications,
     payments,
     plots,
     reservations,
@@ -121,10 +120,9 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
         />
       </motion.div>
 
-      <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-3">
+      <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-2">
         <PaymentSummaryCard payments={payments} />
         <AgreementSummaryCard agreements={agreements} />
-        <NotificationsCard notifications={notifications} />
       </motion.div>
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">

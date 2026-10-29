@@ -1,60 +1,7 @@
 import { motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { rowItem, rowList } from "@/lib/motion"
-import type { Activity, AppNotification } from "@/types/domain"
-
-/** Recent system notifications feed. */
-export function NotificationsCard({
-  notifications,
-}: {
-  notifications: AppNotification[]
-}) {
-  const unread = notifications.filter((n) => !n.read).length
-
-  return (
-    <Card
-      title="System Notifications"
-      action={
-        <span className="text-[11px] font-medium text-deep/60">
-          {unread > 0 ? `${unread} unread` : "All read"}
-        </span>
-      }
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-xs text-deep uppercase">
-              <th>Notification</th>
-              <th>Date &amp; Time</th>
-            </tr>
-          </thead>
-          <motion.tbody variants={rowList} initial="hidden" animate="show">
-            {notifications.map((n) => (
-              <motion.tr
-                key={n.id}
-                variants={rowItem}
-                className={n.read ? "text-deep/55" : ""}
-              >
-                <td>
-                  <span className="flex items-center gap-2">
-                    <span
-                      aria-label={n.read ? "Read" : "Unread"}
-                      className={`h-2 w-2 shrink-0 rounded-full ${
-                        n.read ? "bg-deep/20" : "bg-teal"
-                      }`}
-                    />
-                    {n.message}
-                  </span>
-                </td>
-                <td>{n.dateTime}</td>
-              </motion.tr>
-            ))}
-          </motion.tbody>
-        </table>
-      </div>
-    </Card>
-  )
-}
+import type { Activity } from "@/types/domain"
 
 /** Audit-style feed of recent user actions. */
 export function RecentActivityCard({ activities }: { activities: Activity[] }) {

@@ -22,6 +22,10 @@ read the record or update its verification result. The Cemetery Map also has a
 **Build Plot Grid** builder for laying out a whole block of plots (multiple
 sections, rows × columns, start cell, shared type/size/price).
 
+The header notification centre is database-backed: opening it re-reads the
+`notifications` table, and mark read/unread, mark all read, and delete persist
+through the API function so the header badge and Overview feed stay in sync.
+
 ## Getting started
 
 ### 1. Install

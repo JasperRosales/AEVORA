@@ -97,6 +97,10 @@ export function fetchAll(): Promise<{
   )
 }
 
+export function fetchNotifications(): Promise<AppNotification[]> {
+  return apiGet<AppNotification[]>("/notifications")
+}
+
 export function fetchAttachments(reservationId: string): Promise<Attachment[]> {
   return apiGet<Attachment[]>(`/reservations/${reservationId}/attachments`)
 }
