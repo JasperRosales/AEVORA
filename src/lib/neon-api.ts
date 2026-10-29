@@ -190,17 +190,18 @@ export interface NewPlot {
   section: string
   row: number
   column: number
-  type: Plot["type"]
   size: string
   price: number
   status: Plot["status"]
+  type?: Plot["type"]
+  groupName?: string
 }
 
 export interface NewReservation {
   clientId: string
   plotId: string
   date: string
-  burialType: Reservation["burialType"]
+  plotCategory: Reservation["plotCategory"]
 }
 
 export interface NewPayment {
@@ -244,10 +245,10 @@ export interface NewPlotGrid {
   columns: number
   startRow: number
   startColumn: number
-  type: Plot["type"]
   size: string
   price: number
   status: Plot["status"]
+  type?: Plot["type"]
 }
 
 /** Creates every missing cell in a grid; existing plots are reported as skipped. */
@@ -301,9 +302,27 @@ export function deletePlot(id: string): Promise<{ ok: boolean }> {
   return apiSend<{ ok: boolean }>("DELETE", `/plots/${id}`)
 }
 
+/** Applies one group/category to several plots and returns the updated rows. */
+export interface PlotPlacement {
+  id: string
+  row: number
+  column: number
+}
+
+export function groupPlots(
+  ids: string[],
+  input: {
+    groupName?: string
+    type?: Plot["type"]
+    placements?: PlotPlacement[]
+  }
+): Promise<Plot[]> {
+  return apiSend<Plot[]>("PATCH", "/plots/group", { ids, ...input })
+}
+
 export interface EditReservation {
   date?: string
-  burialType?: Reservation["burialType"]
+  plotCategory?: Reservation["plotCategory"]
   status?: Reservation["status"]
   verification?: Reservation["verification"]
 }

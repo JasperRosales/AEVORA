@@ -10,14 +10,15 @@ import { motion } from "motion/react"
 import { Modal } from "@/components/ui/modal"
 import { reloadClientData, useClientData } from "@/data/client-store"
 import {
-  BURIAL_TYPES,
   createClientReservation,
   type ClientPlot,
   type ClientReservation,
 } from "@/lib/client-api"
 import { EASE_OUT, stagger, staggerItem } from "@/lib/motion"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import { ClientPlotDetailsSheet, ClientPlotMap } from "./client-plot-map"
 import { PaymentSheet } from "./client-payment-sheet"
+import type { PlotCategory } from "@/types/domain"
 import { Card, ErrorNote, pesos, Spinner } from "./client-ui"
 
 const LABEL =
@@ -27,8 +28,6 @@ const INPUT =
 
 /** Cards rendered per "Show more" step — the register can hold hundreds. */
 const PAGE_SIZE = 8
-
-type BurialType = (typeof BURIAL_TYPES)[number]
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10)
@@ -55,7 +54,7 @@ export function PlotsTab({
     const first = plots.find((p) => p.status === "Available") ?? plots[0]
     return first?.cemetery ?? "All"
   })
-  const [type, setType] = useState<BurialType | "All">("All")
+  const [category, setCategory] = useState<PlotCategory | "All">("All")
   const [view, setView] = useState<"map" | "list">("map")
   const [shown, setShown] = useState(PAGE_SIZE)
   const [details, setDetails] = useState<ClientPlot | null>(null)
@@ -76,16 +75,16 @@ export function PlotsTab({
       availablePlots.filter(
         (p) =>
           (cemetery === "All" || p.cemetery === cemetery) &&
-          (type === "All" || p.type === type)
+          (category === "All" || p.type === category)
       ),
-    [availablePlots, cemetery, type]
+    [availablePlots, cemetery, category]
   )
   const visible = filtered.slice(0, shown)
 
   const mapPlots = plots.filter(
     (p) =>
       (cemetery === "All" || p.cemetery === cemetery) &&
-      (type === "All" || p.type === type)
+      (category === "All" || p.type === category)
   )
   const mapAvailable = mapPlots.filter((p) => p.status === "Available").length
   const mapTotal = mapPlots.length
@@ -181,16 +180,16 @@ export function PlotsTab({
           ))}
         </select>
         <select
-          aria-label="Filter by burial type"
-          value={type}
+          aria-label="Filter by plot category"
+          value={category}
           onChange={(e) => {
-            setType(e.target.value as BurialType | "All")
+            setCategory(e.target.value as PlotCategory | "All")
             setShown(PAGE_SIZE)
           }}
           className={INPUT}
         >
-          <option value="All">All types</option>
-          {BURIAL_TYPES.map((option) => (
+          <option value="All">All categories</option>
+          {PLOT_CATEGORIES.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>
@@ -259,19 +258,19 @@ export function PlotsTab({
           <ClientPlotMap
             plots={plots}
             cemetery={cemetery}
-            type={type}
+            category={category}
             onSelect={setDetails}
           />
         )
       ) : filtered.length === 0 ? (
         <Card>
           <p className="text-sm text-deep/70">
-            No plots match these filters. Try another cemetery or burial type.
+            No plots match these filters. Try another cemetery or plot category.
           </p>
           <button
             onClick={() => {
               setCemetery("All")
-              setType("All")
+              setCategory("All")
               setShown(PAGE_SIZE)
             }}
             className="mt-2 text-xs font-semibold text-navy underline-offset-2 hover:underline"
@@ -378,7 +377,7 @@ function ReservePlotSheet({
   onClose: () => void
   onReserved: (reservation: ClientReservation) => void
 }) {
-  const [burialType, setBurialType] = useState<BurialType>(plot.type)
+  const [plotCategory, setPlotCategory] = useState<PlotCategory>(plot.type)
   const [date, setDate] = useState(todayIso)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -391,7 +390,7 @@ function ReservePlotSheet({
       const created = await createClientReservation({
         plotId: plot.id,
         date,
-        burialType,
+        plotCategory,
       })
       reloadClientData()
       onReserved(created)
@@ -424,16 +423,16 @@ function ReservePlotSheet({
         </div>
 
         <div>
-          <label className={LABEL} htmlFor="reserve-burial-type">
-            Burial type
+          <label className={LABEL} htmlFor="reserve-plot-category">
+            Plot category
           </label>
           <select
-            id="reserve-burial-type"
-            value={burialType}
-            onChange={(e) => setBurialType(e.target.value as BurialType)}
+            id="reserve-plot-category"
+            value={plotCategory}
+            onChange={(e) => setPlotCategory(e.target.value as PlotCategory)}
             className={INPUT}
           >
-            {BURIAL_TYPES.map((option) => (
+            {PLOT_CATEGORIES.map((option) => (
               <option key={option} value={option}>
                 {option}
               </option>

@@ -3,6 +3,7 @@ import {
   Clock,
   Paperclip,
   Search,
+  Trash2,
   Upload,
   XCircle,
 } from "lucide-react"
@@ -13,8 +14,15 @@ import { KpiTile } from "@/components/ui/kpi-tile"
 import { Pagination } from "@/components/ui/pagination"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { cemeteryName } from "@/components/cemetery-selector"
-import { addAttachment, loadAttachments, useData } from "@/data/store"
+import {
+  addAttachment,
+  loadAttachments,
+  removeAttachment,
+  useData,
+} from "@/data/store"
 import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
+import { deleteAttachment } from "@/lib/neon-api"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import { usePagination } from "@/lib/use-pagination"
 import {
   DeleteReservationModal,
@@ -49,6 +57,20 @@ function ReservationFiles({ reservation }: { reservation: Reservation }) {
     } finally {
       setBusy(false)
       if (inputRef.current) inputRef.current.value = ""
+    }
+  }
+
+  async function onDelete(id: string, filename: string) {
+    if (!window.confirm(`Delete ${filename}?`)) return
+    setBusy(true)
+    setError(null)
+    try {
+      await deleteAttachment(id)
+      removeAttachment(id)
+    } catch (err) {
+      setError(String(err))
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -104,6 +126,15 @@ function ReservationFiles({ reservation }: { reservation: Reservation }) {
               <span className="text-deep/40">
                 {new Date(a.createdAt).toLocaleString()}
               </span>
+              <button
+                type="button"
+                onClick={() => onDelete(a.id, a.filename)}
+                disabled={busy}
+                aria-label={`Delete ${a.filename}`}
+                className="rounded-full p-1.5 text-red-600 transition hover:bg-red-50 disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+              </button>
             </motion.li>
           ))}
         </motion.ul>
@@ -113,20 +144,30 @@ function ReservationFiles({ reservation }: { reservation: Reservation }) {
 }
 
 export function ReservationsPage() {
-  const { reservations } = useData()
+  const { reservations, plots } = useData()
   const [query, setQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("All")
   const [verificationFilter, setVerificationFilter] = useState("All")
-  const [burialTypeFilter, setBurialTypeFilter] = useState("All")
+  const [categoryFilter, setCategoryFilter] = useState("All")
   const [filesFor, setFilesFor] = useState<string | null>(null)
   const [editing, setEditing] = useState<Reservation | null>(null)
   const [deleting, setDeleting] = useState<Reservation | null>(null)
 
+  const plotTypes = useMemo(
+    () =>
+      new Map(
+        plots.map((plot) => [
+          `${plot.cemeteryId}:${plot.plotNumber}`,
+          plot.type,
+        ])
+      ),
+    [plots]
+  )
   const clearFilters = () => {
     setQuery("")
     setStatusFilter("All")
     setVerificationFilter("All")
-    setBurialTypeFilter("All")
+    setCategoryFilter("All")
   }
 
   const filtered = useMemo(
@@ -139,9 +180,19 @@ export function ReservationsPage() {
           (statusFilter === "All" || r.status === statusFilter) &&
           (verificationFilter === "All" ||
             r.verification === verificationFilter) &&
-          (burialTypeFilter === "All" || r.burialType === burialTypeFilter)
+          (categoryFilter === "All" ||
+            (plotTypes.get(`${r.cemeteryId}:${r.plotNumber}`) ??
+              r.plotCategory) ===
+              categoryFilter)
       ),
-    [reservations, query, statusFilter, verificationFilter, burialTypeFilter]
+    [
+      reservations,
+      plotTypes,
+      query,
+      statusFilter,
+      verificationFilter,
+      categoryFilter,
+    ]
   )
   const { page, pageCount, current: rows, setPage } = usePagination(filtered, 8)
 
@@ -245,14 +296,14 @@ export function ReservationsPage() {
               ))}
             </select>
             <select
-              value={burialTypeFilter}
-              onChange={(e) => setBurialTypeFilter(e.target.value)}
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
               className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
             >
-              <option value="All">All Burial Types</option>
-              {["Private", "Vertical", "Public"].map((t) => (
-                <option key={t} value={t}>
-                  {t}
+              <option value="All">All Plot Types</option>
+              {PLOT_CATEGORIES.map((category) => (
+                <option key={category} value={category}>
+                  {category}
                 </option>
               ))}
             </select>
@@ -272,7 +323,7 @@ export function ReservationsPage() {
                   <th>Cemetery</th>
                   <th>Plot</th>
                   <th>Date</th>
-                  <th>Burial Type</th>
+                  <th>Plot Type</th>
                   <th>Verification</th>
                   <th>Status</th>
                   <th />
@@ -295,7 +346,10 @@ export function ReservationsPage() {
                     <td>{cemeteryName(r.cemeteryId)}</td>
                     <td>{r.plotNumber}</td>
                     <td>{r.date}</td>
-                    <td>{r.burialType}</td>
+                    <td>
+                      {plotTypes.get(`${r.cemeteryId}:${r.plotNumber}`) ??
+                        r.plotCategory}
+                    </td>
                     <td>
                       <StatusBadge status={r.verification} />
                     </td>

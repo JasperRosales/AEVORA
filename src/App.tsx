@@ -25,13 +25,31 @@ import {
 import { pageSwap, screenFade } from "@/lib/motion"
 
 const STAFF_PAGE_HASH = "#/staff-accounts"
+const PAGE_STORAGE_KEY = "aevora:active-page"
+
+function readStoredPage(): Page {
+  try {
+    const saved = window.localStorage.getItem(PAGE_STORAGE_KEY)
+    return saved && saved in PAGES ? (saved as Page) : "Overview"
+  } catch {
+    return "Overview"
+  }
+}
+
+function storePage(page: Page) {
+  try {
+    window.localStorage.setItem(PAGE_STORAGE_KEY, page)
+  } catch {
+    return
+  }
+}
 
 /**
  * The Aevora splash is reserved for a successful sign-in: it replays after
  * authentication and holds long enough for the emblem draw to read before the
  * portal is revealed. Plain refreshes (login, register or app) never splash.
  */
-const ENTRY_SPLASH_MS = 2600
+const ENTRY_SPLASH_MS = 5000
 
 /**
  * Which portal this page load serves. The site is split by path so the two
@@ -55,7 +73,7 @@ const appEndpoint = side === "client" ? "/client" : "/"
 
 export default function App() {
   const { status, user } = useSession()
-  const [page, setPage] = useState<Page>("Overview")
+  const [page, setPage] = useState<Page>(readStoredPage)
   const [hash, setHash] = useState(() => window.location.hash)
   const [mismatch, setMismatch] = useState<string | null>(null)
   const [entrySplash, setEntrySplash] = useState(false)
@@ -133,6 +151,7 @@ export default function App() {
   // jump between pages from anywhere in a scrolled view.
   useEffect(() => {
     window.scrollTo({ top: 0 })
+    storePage(page)
   }, [page])
 
   // One key per top-level screen so AnimatePresence can cross-fade between

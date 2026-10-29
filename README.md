@@ -2,8 +2,8 @@
 
 Aevora is a full-stack cemetery management app built on Neon:
 
-- **Staff dashboard** (desktop) — Overview, Cemetery Map, Plots, Reservations,
-  Clients, Payments, Agreements, and Reports.
+- **Staff dashboard** (desktop) — Overview, Cemetery Map, Reservations, Clients,
+  Payments, Agreements, and Reports.
 - **Client portal** (mobile-first) — families browse the plot map (or a list of
   available plots), reserve one, pay (or upload proof), and follow their
   reservations and documents.
@@ -79,7 +79,6 @@ Full documentation lives in [`docs/`](docs/README.md).
 - [Cemetery Map](docs/pages/cemetery-map.md) — site-plan plot map with filters,
   a configurable parcel layout, status editing, a details panel, and a bulk grid
   builder
-- [Plots](docs/pages/plots.md) — searchable, paginated plot register
 - [Reservations](docs/pages/reservations.md) — reservation tracking and
   document attachments
 - [Clients](docs/pages/clients.md) — client register and the client/account

@@ -52,7 +52,17 @@ plots match the current filters.
 - Plots that don't match the active filters dim to 18% opacity rather than
   disappearing, keeping the spatial context.
 - Clicking a cell selects it; clicking the land background clears the selection.
-  Hovering a cell shows a tooltip with the plot number and status.
+  Ctrl/Cmd-click or Shift-click adds a plot to the selection, and clicking an
+  already-selected plot removes it. Hovering a cell shows a tooltip with the
+  plot number and status.
+- The **Group** button groups two or more selected plots under a shared name and
+  category (`PATCH /plots/group`). The group is drawn as one rounded card around
+  its plots, colored by category, with the group name and plot count badge above
+  it and a matching group chip below the map. Opening the dialog on an existing
+  group also offers **Ungroup**.
+- Plot types are `Typical Block`, `Premium Lot`, `Special Premium Lot`,
+  and `Lot with Trees`. Each category has its own outline color
+  (`plotCategoryStroke` in `src/lib/plot-category.ts`).
 - The **status palette** above the map applies a status to the selected plot
   immediately (`PATCH /plots/:id`). Choosing **Available** also clears
   `reserved_for`, so a freed plot can be reserved again. The store is updated in
@@ -60,6 +70,9 @@ plots match the current filters.
 - The **Add plots** button in the map header opens the grid builder with the
   next unused section letter prefilled. Rows × columns in the builder sets the
   new parcel's shape on the drawing.
+- The **Delete plot** button next to **Add plots** deletes the selected plot
+  after confirmation (`DELETE /plots/:id`). Reserved or occupied plots are
+  rejected by the API and must be freed first.
 - A compact legend below the drawing repeats the status colors for quick
   reading.
 - With no plots in the cemetery, the card shows an empty state with a **Build
@@ -74,7 +87,8 @@ a rectangular block and previews it before creating anything:
   **Columns**, **Start row** and **Start column**.
 - Rows × columns also sets the parcel's shape on the site plan: 3 × 3 is a
   square, 4 × 8 a wide rectangle, and 10 × 10 a large square.
-- Shared **type**, **status**, **size** and **price** for every generated plot.
+- Shared **type**, **category**, **status**, **size** and **price** for every
+  generated plot.
 - The plot number and id use the same scheme as the single Add Plot action
   (`A-101`, id `<cemetery>-A-1-1`), so a grid extension lines up with existing
   records.
@@ -88,8 +102,8 @@ a rectangular block and previews it before creating anything:
 ### Details panel (`PlotDetailsCard`)
 
 Shown next to the map (left column). When a plot is selected it displays its
-number, section, type, size, price, and status; otherwise it prompts the user
-to click a plot. If a reservation exists for the plot, the panel also shows its
+number, section, type, category, group, size, price, and status; otherwise it
+prompts the user to click a plot. If a reservation exists for the plot, the panel also shows its
 number and information-checking badge, and the action buttons become live:
 
 - **Reserve Plot** (Available) opens the create-reservation form with the plot
@@ -98,8 +112,8 @@ number and information-checking badge, and the action buttons become live:
 - **Review Request** (Waiting for Checking, or any reservation not yet
   `Verified`) opens the same dialog in information-checking mode, where staff
   can set the reservation status and verification result.
-- **View Details** always opens the plot edit dialog for type, size, price,
-  status, and reserved-for changes.
+- **View Details** always opens the plot edit dialog for type, category, size,
+  price, status, and reserved-for changes.
 
 The reservation dialog is shared with the Overview page
 (`src/features/shared/reservation-review-modal.tsx`). Saving calls
@@ -109,13 +123,14 @@ the map, details panel, and Overview tables without a reload.
 ### List view (`PlotListView`)
 
 The same filtered plots as a scrollable table (plot number, section, type,
-size, price, status) for people who prefer rows over the map.
+category, group, size, price, status) for people who prefer rows over the map.
 
 ## Data
 
 Plots and cemeteries come from the shared staff store (`/plots`, `/cemeteries`
 endpoints, staff-guarded). The grid builder posts to `POST /plots/grid`
-(staff-guarded) and receives `{ created, skipped }`.
+(staff-guarded) and receives `{ created, skipped }`. Grouping and category
+changes use `PATCH /plots/group` and `PATCH /plots/:id`.
 
 The mobile [client portal](client-portal.md) reads the same plots through
 `GET /client/plots?scope=all` and renders the same section grid, so an admin

@@ -3,9 +3,9 @@ import { useState, type FormEvent } from "react"
 import { Modal } from "@/components/ui/modal"
 import { insertPlots, useData } from "@/data/store"
 import { createPlotGrid } from "@/lib/neon-api"
-import type { BurialType, PlotStatus } from "@/types/domain"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
+import type { PlotCategory, PlotStatus } from "@/types/domain"
 
-const BURIAL_TYPES: BurialType[] = ["Private", "Vertical", "Public"]
 const PLOT_STATUSES: PlotStatus[] = [
   "Available",
   "Waiting for Checking",
@@ -33,7 +33,7 @@ function errorMessage(err: unknown): string {
 /**
  * Bulk layout builder. Instead of adding one plot at a time, an admin describes
  * a rectangular block — one or more sections, rows × columns, a starting cell
- * and a shared type/size/price — and sees the resulting grid before committing.
+ * and a shared category/size/price — and sees the resulting grid before committing.
  * Cells that already exist are skipped, so re-running a grid is safe and can be
  * used to fill an extension. Rendered only while open, so the form resets.
  */
@@ -57,7 +57,7 @@ export function PlotGridBuilderModal({
   const [columns, setColumns] = useState("6")
   const [startRow, setStartRow] = useState("1")
   const [startColumn, setStartColumn] = useState("1")
-  const [type, setType] = useState<BurialType>("Private")
+  const [category, setCategory] = useState<PlotCategory>("Typical Block")
   const [size, setSize] = useState("1.2m × 2.4m")
   const [price, setPrice] = useState("15000")
   const [status, setStatus] = useState<PlotStatus>("Available")
@@ -144,7 +144,7 @@ export function PlotGridBuilderModal({
         columns: colCount,
         startRow: rowStart,
         startColumn: colStart,
-        type,
+        type: category,
         size: size.trim(),
         price: Number(price),
         status,
@@ -291,16 +291,16 @@ export function PlotGridBuilderModal({
 
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
-            <label className={LABEL} htmlFor="grid-type">
+            <label className={LABEL} htmlFor="grid-category">
               Type
             </label>
             <select
-              id="grid-type"
-              value={type}
-              onChange={(e) => setType(e.target.value as BurialType)}
+              id="grid-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as PlotCategory)}
               className={INPUT}
             >
-              {BURIAL_TYPES.map((option) => (
+              {PLOT_CATEGORIES.map((option) => (
                 <option key={option} value={option}>
                   {option}
                 </option>

@@ -1,6 +1,7 @@
 import { useId, useMemo, useState, useRef } from "react"
+import { plotCategoryStroke } from "@/lib/plot-category"
 import { plotStatusFill } from "@/lib/status"
-import type { BurialType, PlotStatus } from "@/types/domain"
+import type { PlotCategory, PlotStatus } from "@/types/domain"
 
 /** One cell on the land map. The label is the short plot number (e.g. 101). */
 export interface LandMapPlot {
@@ -9,7 +10,11 @@ export interface LandMapPlot {
   row: number
   column: number
   status: PlotStatus
-  type: BurialType
+  category?: PlotCategory
+  groupName?: string
+  /** Explicit cell position, used to keep grouped plots in their grid shape. */
+  x?: number
+  y?: number
 }
 
 /** A parcel of land containing a rectangular block of plots. */
@@ -34,6 +39,25 @@ const SECTION_PAD = 10
 const SECTION_HEADER = 30
 const SECTION_GAP = 18
 const LAND_PAD = 28
+const GROUP_PAD = 1.8
+
+function plotPosition(
+  section: { columns: number },
+  plot: LandMapPlot,
+  index: number,
+  positions: Record<string, { x: number; y: number }>
+) {
+  const calcCol = index % section.columns
+  const calcRow = Math.floor(index / section.columns)
+  const baseX = SECTION_PAD + calcCol * (CELL + CELL_GAP)
+  const baseY = SECTION_PAD + SECTION_HEADER + calcRow * (CELL + CELL_GAP)
+  const custom = positions[plot.id]
+  if (custom) return { x: custom.x, y: custom.y }
+  if (plot.x !== undefined && plot.y !== undefined) {
+    return { x: plot.x, y: plot.y }
+  }
+  return { x: baseX, y: baseY }
+}
 
 interface MeasuredSection extends LandMapSection {
   columns: number
@@ -65,29 +89,119 @@ function measure(section: LandMapSection): MeasuredSection {
  * Layout all plots in a single large unified grid.
  */
 function layoutUnified(sections: LandMapSection[], customCols?: number) {
-  const allPlots: LandMapPlot[] = []
+  const ordered: Array<{ sectionName: string; plot: LandMapPlot }> = []
   for (const section of sections) {
-    allPlots.push(...section.plots)
+    for (const plot of section.plots) {
+      ordered.push({ sectionName: section.name, plot })
+    }
   }
 
-  if (allPlots.length === 0) {
+  if (ordered.length === 0) {
     return { sections: [], width: 320, height: 220 }
   }
 
   // Use a fixed reasonable grid layout - 15 columns by default
   const cols = Math.max(1, Math.floor(customCols ?? 15))
-  const rows = Math.ceil(allPlots.length / cols)
+  const placed = new Set<string>()
+  const positioned: LandMapPlot[] = []
+  let cursorColumn = 0
+  let cursorRow = 0
+  let usedColumns = 1
+  let usedRows = 1
 
-  const gridWidth = cols * CELL + (cols - 1) * CELL_GAP
-  const gridHeight = rows * CELL + (rows - 1) * CELL_GAP
+  const place = (plot: LandMapPlot, column: number, row: number) => {
+    positioned.push({
+      ...plot,
+      x: SECTION_PAD + column * (CELL + CELL_GAP),
+      y: SECTION_PAD + SECTION_HEADER + row * (CELL + CELL_GAP),
+    })
+    placed.add(plot.id)
+    usedColumns = Math.max(usedColumns, column + 1)
+    usedRows = Math.max(usedRows, row + 1)
+  }
+
+  const advance = () => {
+    cursorColumn += 1
+    if (cursorColumn >= cols) {
+      cursorColumn = 0
+      cursorRow += 1
+    }
+  }
+
+  for (const entry of ordered) {
+    const plot = entry.plot
+    if (placed.has(plot.id)) continue
+
+    if (!plot.groupName) {
+      place(plot, cursorColumn, cursorRow)
+      advance()
+      continue
+    }
+
+    // Keep the members of one group together as a block so the group outline
+    // wraps a real grid instead of a scattered set of cells.
+    const members = ordered
+      .filter(
+        (candidate) =>
+          !placed.has(candidate.plot.id) &&
+          candidate.sectionName === entry.sectionName &&
+          candidate.plot.groupName === plot.groupName
+      )
+      .map((candidate) => candidate.plot)
+
+    const baseRow = Math.min(...members.map((member) => member.row))
+    const baseColumn = Math.min(...members.map((member) => member.column))
+    let groupColumns =
+      Math.max(...members.map((member) => member.column)) - baseColumn + 1
+    let groupRows = Math.max(...members.map((member) => member.row)) - baseRow + 1
+
+    // Legacy groups (or very lopsided grids) can have a huge bounding box with
+    // few members; fall back to a compact near-square block.
+    const sparse = groupColumns * groupRows > members.length * 3
+    if (sparse) {
+      groupColumns = Math.max(1, Math.ceil(Math.sqrt(members.length)))
+      groupRows = Math.ceil(members.length / groupColumns)
+    }
+
+    if (cursorColumn + groupColumns > cols && cursorColumn > 0) {
+      cursorColumn = 0
+      cursorRow += 1
+    }
+
+    members.forEach((member, index) => {
+      let offsetColumn = member.column - baseColumn
+      let offsetRow = member.row - baseRow
+      if (
+        offsetColumn < 0 ||
+        offsetColumn >= groupColumns ||
+        offsetRow < 0 ||
+        offsetRow >= groupRows
+      ) {
+        offsetColumn = index % groupColumns
+        offsetRow = Math.floor(index / groupColumns)
+      }
+      place(member, cursorColumn + offsetColumn, cursorRow + offsetRow)
+    })
+
+    cursorColumn = 0
+    cursorRow += groupRows
+  }
+
+  const gridWidth =
+    usedColumns * CELL + (usedColumns - 1) * CELL_GAP + SECTION_PAD * 2
+  const gridHeight =
+    usedRows * CELL +
+    (usedRows - 1) * CELL_GAP +
+    SECTION_HEADER +
+    SECTION_PAD * 2
 
   const unifiedSection: PositionedSection = {
     name: "Plots",
-    plots: allPlots,
-    columns: cols,
-    rows: rows,
-    width: gridWidth + SECTION_PAD * 2,
-    height: gridHeight + SECTION_HEADER + SECTION_PAD * 2,
+    plots: positioned,
+    columns: usedColumns,
+    rows: usedRows,
+    width: gridWidth,
+    height: gridHeight,
     x: LAND_PAD,
     y: LAND_PAD,
   }
@@ -160,7 +274,7 @@ export function PlotLandMap({
   sections: LandMapSection[]
   sectionColumns: number
   selectedId?: string | null
-  onSelect?: (id: string) => void
+  onSelect?: (id: string, event: React.MouseEvent) => void
   onBackgroundClick?: () => void
   isDimmed?: (plot: LandMapPlot) => boolean
   ariaLabel?: string
@@ -250,6 +364,61 @@ export function PlotLandMap({
   }, [autoLayout, manualPositions, plotDraggable, plotPositions, elements])
 
   if (sections.length === 0) return null
+
+  const groupBoxes = (() => {
+    const boxes = new Map<
+      string,
+      {
+        sectionName: string
+        label: string
+        x: number
+        y: number
+        width: number
+        height: number
+        count: number
+        stroke: string
+      }
+    >()
+    for (const section of drawing.sections) {
+      section.plots.forEach((plot, index) => {
+        if (!plot.groupName) return
+        const { x, y } = plotPosition(
+          section,
+          plot,
+          index,
+          plotPositions
+        )
+        const key = `${section.name}\u0000${plot.groupName}`
+        const existing = boxes.get(key)
+        const right = x + CELL + GROUP_PAD
+        const bottom = y + CELL + GROUP_PAD
+        if (!existing) {
+          boxes.set(key, {
+            sectionName: section.name,
+            label: plot.groupName,
+            x: x - GROUP_PAD,
+            y: y - GROUP_PAD,
+            width: CELL + GROUP_PAD * 2,
+            height: CELL + GROUP_PAD * 2,
+            count: 1,
+            stroke:
+              plotCategoryStroke[plot.category ?? "Typical Block"],
+          })
+          return
+        }
+        existing.count += 1
+        const left = Math.min(existing.x, x - GROUP_PAD)
+        const top = Math.min(existing.y, y - GROUP_PAD)
+        const rightEdge = Math.max(existing.x + existing.width, right)
+        const bottomEdge = Math.max(existing.y + existing.height, bottom)
+        existing.x = left
+        existing.y = top
+        existing.width = rightEdge - left
+        existing.height = bottomEdge - top
+      })
+    }
+    return [...boxes.values()]
+  })()
 
   const handleMouseDown = (e: React.MouseEvent, sectionName: string) => {
     if (!draggable && !plotDraggable) return
@@ -504,28 +673,60 @@ export function PlotLandMap({
               </text>
             )}
 
+            {groupBoxes
+              .filter((box) => box.sectionName === section.name)
+              .map((box) => (
+                <g
+                  key={`group-card-${section.name}-${box.label}`}
+                  pointerEvents="none"
+                >
+                  <title>{`${box.label} — ${box.count} plots`}</title>
+                  <rect
+                    x={box.x}
+                    y={box.y}
+                    width={box.width}
+                    height={box.height}
+                    rx={3.5}
+                    fill={box.stroke}
+                    fillOpacity={0.08}
+                    stroke={box.stroke}
+                    strokeWidth={2}
+                    strokeDasharray="5 2"
+                  />
+                  <rect
+                    x={box.x}
+                    y={box.y}
+                    width={box.width}
+                    height={box.height}
+                    rx={3.5}
+                    fill="none"
+                    stroke={box.stroke}
+                    strokeOpacity={0.35}
+                    strokeWidth={4}
+                  />
+                </g>
+              ))}
+
             {section.plots.map((plot) => {
               const fill = plotStatusFill[plot.status]
+              const typeColor = plotCategoryStroke[plot.category ?? "Typical Block"]
+              const statusColor = fill.stroke ?? fill.fill
               const selected =
                 selectedId === plot.id || selectedPlots.has(plot.id)
               const dimmed = isDimmed?.(plot) ?? false
-              const darkText =
-                plot.status === "Unavailable" ||
-                plot.status === "Waiting for Checking"
+              const darkText = plot.category === "Typical Block"
               const idx = section.plots.findIndex((p) => p.id === plot.id)
-              const calcCol = idx % section.columns
-              const calcRow = Math.floor(idx / section.columns)
-              const basePx = SECTION_PAD + calcCol * (CELL + CELL_GAP)
-              const basePy =
-                SECTION_PAD + SECTION_HEADER + calcRow * (CELL + CELL_GAP)
-              const customPos = plotPositions[plot.id]
-              const px = customPos ? customPos.x : basePx
-              const py = customPos ? customPos.y : basePy
+              const { x: px, y: py } = plotPosition(
+                section,
+                plot,
+                idx,
+                plotPositions
+              )
 
               return (
                 <g
                   key={plot.id}
-                  opacity={selected ? 1 : dimmed ? 0.3 : 0.95}
+                  opacity={selected || !dimmed ? 1 : 0.3}
                   className={
                     onSelect || plotDraggable ? "cursor-pointer" : undefined
                   }
@@ -535,17 +736,12 @@ export function PlotLandMap({
                     }
                   }}
                   onClick={
-                    onSelect && !plotDraggable
+                    onSelect
                       ? (event) => {
                           event.stopPropagation()
-                          onSelect(plot.id)
+                          onSelect(plot.id, event)
                         }
-                      : plotDraggable && onSelect
-                        ? (event) => {
-                            event.stopPropagation()
-                            onSelect(plot.id)
-                          }
-                        : undefined
+                      : undefined
                   }
                 >
                   <title>{`Plot ${plot.label} — ${plot.status}`}</title>
@@ -555,11 +751,20 @@ export function PlotLandMap({
                     width={CELL}
                     height={CELL}
                     rx={0.5}
-                    fill={fill.fill}
+                    fill={typeColor}
                     stroke={selected ? "#000" : "#444"}
                     strokeWidth={selected ? 1.5 : 0.3}
-                    opacity={dimmed ? 0.3 : 1}
                   />
+                  <circle
+                    cx={px + CELL - 2.7}
+                    cy={py + 2.7}
+                    r={2.1}
+                    fill={statusColor}
+                    stroke="#fff"
+                    strokeWidth={0.65}
+                  >
+                    <title>{plot.status}</title>
+                  </circle>
                   <text
                     x={px + CELL / 2}
                     y={py + CELL / 2 + 0.8}
@@ -574,6 +779,38 @@ export function PlotLandMap({
                 </g>
               )
             })}
+
+            {groupBoxes
+              .filter((box) => box.sectionName === section.name)
+              .map((box) => {
+                const badgeWidth = Math.max(
+                  14,
+                  (box.label.length + String(box.count).length + 3) * 1.75
+                )
+                return (
+                  <g
+                    key={`${box.sectionName}-${box.label}`}
+                    pointerEvents="none"
+                  >
+                    <rect
+                      x={box.x}
+                      y={box.y - 5.5}
+                      width={badgeWidth}
+                      height={4.6}
+                      rx={1.4}
+                      fill={box.stroke}
+                    />
+                    <text
+                      x={box.x + 1.8}
+                      y={box.y - 2.2}
+                      fill="#fff"
+                      style={{ fontSize: 3, fontWeight: 700 }}
+                    >
+                      {box.label} · {box.count}
+                    </text>
+                  </g>
+                )
+              })}
           </g>
         )
       })}

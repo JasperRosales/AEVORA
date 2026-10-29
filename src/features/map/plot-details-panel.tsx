@@ -42,7 +42,8 @@ export function PlotDetailsCard({
             <Row label="Row / Plot">
               {plot.row} / {plot.column}
             </Row>
-            <Row label="Burial Type">{plot.type}</Row>
+            <Row label="Type">{plot.type}</Row>
+            {plot.groupName && <Row label="Group">{plot.groupName}</Row>}
             <Row label="Plot Size">{plot.size}</Row>
             <Row label="Price">{formatCurrency(plot.price)}</Row>
             <Row label="Status">

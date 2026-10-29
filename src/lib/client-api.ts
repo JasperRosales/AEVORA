@@ -1,5 +1,5 @@
 import { apiGet, apiSend } from "@/lib/neon-api"
-import type { BurialType, PlotStatus } from "@/types/domain"
+import type { PlotCategory, PlotStatus } from "@/types/domain"
 
 /**
  * Client-portal API. Every endpoint is scoped server-side to the signed-in
@@ -29,7 +29,7 @@ export interface ClientSummary {
     reservation_number: string
     plot_number: string
     date: string
-    burial_type: string
+    plot_category: string
     status: string
     verification: string
   } | null
@@ -43,10 +43,11 @@ export interface ClientPlot {
   section: string
   row: number
   column: number
-  type: BurialType
   size: string
   price: number
   status: PlotStatus
+  type: PlotCategory
+  group_name?: string | null
   cemetery: string
   location: string
 }
@@ -56,7 +57,7 @@ export interface ClientReservation {
   reservation_number: string
   plot_number: string
   date: string
-  burial_type: string
+  plot_category: string
   status: string
   verification: string
   cemetery: string
@@ -107,8 +108,6 @@ export const PAYMENT_METHODS = [
   "Cash",
 ] as const
 
-export const BURIAL_TYPES = ["Private", "Vertical", "Public"] as const
-
 export function fetchClientSummary(): Promise<ClientSummary> {
   return apiGet<ClientSummary>("/client/summary")
 }
@@ -134,7 +133,7 @@ export function fetchClientAgreements(): Promise<ClientAgreement[]> {
 export function createClientReservation(input: {
   plotId: string
   date: string
-  burialType: (typeof BURIAL_TYPES)[number]
+  plotCategory: PlotCategory
 }): Promise<ClientReservation> {
   return apiSend<ClientReservation>("POST", "/client/reservations", input)
 }

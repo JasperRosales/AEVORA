@@ -6,7 +6,6 @@ import {
   FileText,
   LayoutDashboard,
   Map,
-  LayoutGrid,
   Users,
 } from "lucide-react"
 import { EASE_OUT, layoutSpring, stagger, staggerItem } from "@/lib/motion"
@@ -14,7 +13,6 @@ import { EASE_OUT, layoutSpring, stagger, staggerItem } from "@/lib/motion"
 export type Page =
   | "Overview"
   | "Cemetery Map"
-  | "Plots"
   | "Reservations"
   | "Clients"
   | "Payments"
@@ -24,7 +22,6 @@ export type Page =
 const pages: { name: Page; icon: typeof Map }[] = [
   { name: "Overview", icon: LayoutDashboard },
   { name: "Cemetery Map", icon: Map },
-  { name: "Plots", icon: LayoutGrid },
   { name: "Reservations", icon: CalendarCheck },
   { name: "Clients", icon: Users },
   { name: "Payments", icon: CreditCard },

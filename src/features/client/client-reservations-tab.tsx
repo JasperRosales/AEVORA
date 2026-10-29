@@ -73,7 +73,7 @@ export function ReservationsTab({
               </div>
               <p className="mt-1 text-sm">
                 Plot <span className="font-medium">{r.plot_number}</span> ·{" "}
-                {r.burial_type}
+                {r.plot_category}
               </p>
               <p className="mt-0.5 flex items-center gap-1 text-xs text-deep/60">
                 <MapPin size={12} /> {r.cemetery} — {r.location}

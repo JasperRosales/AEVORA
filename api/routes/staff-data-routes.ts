@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { and, desc, eq } from "drizzle-orm"
+import { and, desc, eq, inArray } from "drizzle-orm"
 import { Hono } from "hono"
 import { provisionClientAccount, staffGuard, type AppEnv } from "../lib/auth"
 import { db, pool } from "../lib/db"
@@ -16,7 +16,12 @@ const routes = new Hono<AppEnv>()
 
 const CLIENT_TYPES = ["Individual", "Corporate"] as const
 const CLIENT_STATUSES = ["Active", "Inactive", "Pending"] as const
-const BURIAL_TYPES = ["Private", "Vertical", "Public"] as const
+const PLOT_CATEGORIES = [
+  "Typical Block",
+  "Premium Lot",
+  "Special Premium Lot",
+  "Lot with Trees",
+] as const
 const PLOT_STATUSES = [
   "Available",
   "Reserved",
@@ -67,8 +72,27 @@ routes.get("/plots", staffGuard, async (c) => {
 })
 
 routes.get("/reservations", staffGuard, async (c) => {
-  const rows = await db.select().from(schema.reservations)
-  return c.json(rows.map(toReservation))
+  const rows = await db
+    .select({
+      reservation: schema.reservations,
+      plotType: schema.plots.type,
+    })
+    .from(schema.reservations)
+    .leftJoin(
+      schema.plots,
+      and(
+        eq(schema.plots.cemeteryId, schema.reservations.cemeteryId),
+        eq(schema.plots.plotNumber, schema.reservations.plotNumber)
+      )
+    )
+  return c.json(
+    rows.map(({ reservation, plotType }) => ({
+      ...toReservation(reservation),
+      plotCategory: plotType
+        ? normalizePlotType(plotType)
+        : normalizePlotType(reservation.plotCategory),
+    }))
+  )
 })
 
 routes.get("/clients", staffGuard, async (c) =>
@@ -226,10 +250,11 @@ routes.post("/plots", staffGuard, async (c) => {
       section,
       row,
       column,
-      type: oneOf(body.type, BURIAL_TYPES, "Private"),
       size,
       price: Math.round(price),
       status: oneOf(body.status, PLOT_STATUSES, "Available"),
+      type: oneOf(body.type, PLOT_CATEGORIES, "Typical Block"),
+      groupName: str(body.groupName) || null,
       reservedFor: str(body.reservedFor) || null,
     })
     .returning()
@@ -240,7 +265,7 @@ routes.post("/plots", staffGuard, async (c) => {
 /**
  * Bulk layout builder: lays out a rectangular block of plots for one cemetery.
  * The admin picks one or more sections, a rows × columns block and a starting
- * cell, and every generated plot shares the same type/size/price. Existing
+ * cell, and every generated plot shares the same category/size/price. Existing
  * plot ids are skipped instead of failing the whole request, so a grid can be
  * extended or re-run safely. One request is capped at 500 plots.
  */
@@ -318,8 +343,9 @@ routes.post("/plots/grid", staffGuard, async (c) => {
     .where(eq(schema.cemeteries.id, cemeteryId))
   if (!cemetery) return c.json({ error: "Unknown cemetery" }, 404)
 
-  const type = oneOf(body.type, BURIAL_TYPES, "Private")
   const status = oneOf(body.status, PLOT_STATUSES, "Available")
+  const type = oneOf(body.type, PLOT_CATEGORIES, "Typical Block")
+  const groupName = str(body.groupName) || null
   const roundedPrice = Math.round(price)
 
   // Same identity/number scheme as the single Add Plot action, so a grid
@@ -336,10 +362,11 @@ routes.post("/plots/grid", staffGuard, async (c) => {
           section,
           row,
           column,
-          type,
           size,
           price: roundedPrice,
           status,
+          type,
+          groupName,
           reservedFor: null,
         }
       })
@@ -410,10 +437,10 @@ routes.post("/reservations", staffGuard, async (c) => {
       cemeteryId: plot.cemeteryId,
       plotNumber: plot.plotNumber,
       date,
-      burialType: oneOf(
-        body.burialType,
-        BURIAL_TYPES,
-        oneOf(plot.type, BURIAL_TYPES, "Private")
+      plotCategory: oneOf(
+        body.plotCategory,
+        PLOT_CATEGORIES,
+        oneOf(plot.type, PLOT_CATEGORIES, "Typical Block")
       ),
       status: "Pending",
       verification: "Waiting for Checking",
@@ -604,6 +631,78 @@ routes.delete("/clients/:id", staffGuard, async (c) => {
   return c.json({ ok: true })
 })
 
+routes.patch("/plots/group", staffGuard, async (c) => {
+  const body = await c.req.json<Record<string, unknown>>()
+  const ids = Array.isArray(body.ids)
+    ? [...new Set(body.ids.map((id) => String(id)).filter(Boolean))]
+    : []
+  if (ids.length === 0) {
+    return c.json({ error: "Select at least one plot" }, 400)
+  }
+  const rawPlacements = Array.isArray(body.placements) ? body.placements : []
+  const placements = rawPlacements
+    .map((entry) => {
+      const record = entry as Record<string, unknown>
+      const id = str(record.id)
+      const row = Number(record.row)
+      const column = Number(record.column)
+      if (
+        !ids.includes(id) ||
+        !Number.isInteger(row) ||
+        !Number.isInteger(column) ||
+        row < 1 ||
+        column < 1
+      ) {
+        return null
+      }
+      return { id, row, column }
+    })
+    .filter(
+      (entry): entry is { id: string; row: number; column: number } =>
+        entry !== null
+    )
+
+  if (
+    body.groupName === undefined &&
+    body.type === undefined &&
+    placements.length === 0
+  ) {
+    return c.json({ error: "Nothing to update" }, 400)
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    if (body.groupName !== undefined || body.type !== undefined) {
+      await tx
+        .update(schema.plots)
+        .set({
+          ...(body.groupName === undefined
+            ? {}
+            : { groupName: str(body.groupName) || null }),
+          ...(body.type === undefined
+            ? {}
+            : {
+                type: oneOf(body.type, PLOT_CATEGORIES, "Typical Block"),
+              }),
+        })
+        .where(inArray(schema.plots.id, ids))
+    }
+    // Grid grouping also rewrites row/column so the group keeps the requested
+    // shape on the map (row, column, or a rows × columns block).
+    for (const placement of placements) {
+      await tx
+        .update(schema.plots)
+        .set({ row: placement.row, column: placement.column })
+        .where(eq(schema.plots.id, placement.id))
+    }
+    return tx
+      .select()
+      .from(schema.plots)
+      .where(inArray(schema.plots.id, ids))
+  })
+
+  return c.json(updated.map(toPlot))
+})
+
 routes.patch("/plots/:id", staffGuard, async (c) => {
   const id = c.req.param("id")
   const body = await c.req.json<Record<string, unknown>>()
@@ -628,10 +727,14 @@ routes.patch("/plots/:id", staffGuard, async (c) => {
   const [updated] = await db
     .update(schema.plots)
     .set({
-      type: oneOf(body.type, BURIAL_TYPES, existing.type),
       size,
       price,
       status: oneOf(body.status, PLOT_STATUSES, existing.status),
+      type: oneOf(body.type, PLOT_CATEGORIES, existing.type),
+      groupName:
+        body.groupName === undefined
+          ? existing.groupName
+          : str(body.groupName) || null,
       reservedFor:
         body.reservedFor === undefined
           ? existing.reservedFor
@@ -673,7 +776,11 @@ routes.patch("/reservations/:id", staffGuard, async (c) => {
     .update(schema.reservations)
     .set({
       date: isDate(str(body.date)) ? str(body.date) : existing.date,
-      burialType: oneOf(body.burialType, BURIAL_TYPES, existing.burialType),
+      plotCategory: oneOf(
+        body.plotCategory,
+        PLOT_CATEGORIES,
+        existing.plotCategory
+      ),
       status: oneOf(body.status, RESERVATION_STATUSES, existing.status),
       verification: oneOf(
         body.verification,
@@ -894,11 +1001,28 @@ function toPlot(r: typeof schema.plots.$inferSelect) {
     section: r.section,
     row: r.row,
     column: r.column,
-    type: r.type,
     size: r.size,
     price: r.price,
     status: r.status,
+    type: normalizePlotType(r.type),
+    groupName: r.groupName ?? undefined,
     reservedFor: r.reservedFor ?? undefined,
+  }
+}
+
+function normalizePlotType(type: string) {
+  switch (type) {
+    case "Typical Plot":
+    case "Public":
+      return "Typical Block"
+    case "Premium Block":
+    case "Private":
+      return "Premium Lot"
+    case "Special Premium Plot":
+    case "Vertical":
+      return "Special Premium Lot"
+    default:
+      return type
   }
 }
 
@@ -910,7 +1034,7 @@ function toReservation(r: typeof schema.reservations.$inferSelect) {
     cemeteryId: r.cemeteryId,
     plotNumber: r.plotNumber,
     date: r.date,
-    burialType: r.burialType,
+    plotCategory: r.plotCategory,
     status: r.status,
     verification: r.verification,
   }

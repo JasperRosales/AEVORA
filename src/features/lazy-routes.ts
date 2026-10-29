@@ -33,9 +33,6 @@ const loaders: Record<Page, Loader> = {
   "Cemetery Map": async () => ({
     default: (await import("@/features/map/cemetery-map-page")).CemeteryMapPage,
   }),
-  Plots: async () => ({
-    default: (await import("@/features/plots/plots-page")).PlotsPage,
-  }),
   Reservations: async () => ({
     default: (await import("@/features/reservations/reservations-page"))
       .ReservationsPage,

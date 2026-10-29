@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react"
 import { Modal } from "@/components/ui/modal"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import {
   removeAgreement,
   removeClient,
@@ -30,11 +31,11 @@ import {
 } from "@/lib/neon-api"
 import type {
   Agreement,
-  BurialType,
   Client,
   GeneratedReport,
   Payment,
   Plot,
+  PlotCategory,
   PlotStatus,
   Reservation,
 } from "@/types/domain"
@@ -64,6 +65,7 @@ interface FieldSpec {
   label: string
   /** "number" coerces to Number on submit; "date" renders a date picker. */
   type?: "text" | "number" | "date" | "select"
+  required?: boolean
   options?: readonly string[]
 }
 
@@ -130,7 +132,7 @@ function RecordForm({
               <input
                 id={`field-${f.key}`}
                 type={f.type === "number" ? "number" : f.type ?? "text"}
-                required
+                required={f.required ?? true}
                 value={values[f.key]}
                 onChange={(e) =>
                   setValues((v) => ({ ...v, [f.key]: e.target.value }))
@@ -303,14 +305,14 @@ export function DeleteClientModal({
 /* ---------------------------------- Plots --------------------------------- */
 
 const PLOT_FIELDS: FieldSpec[] = [
-  {
-    key: "type",
-    label: "Burial type",
-    type: "select",
-    options: ["Private", "Vertical", "Public"],
-  },
   { key: "size", label: "Size" },
   { key: "price", label: "Price", type: "number" },
+  {
+    key: "type",
+    label: "Type",
+    type: "select",
+    options: PLOT_CATEGORIES,
+  },
   {
     key: "status",
     label: "Status",
@@ -323,7 +325,7 @@ const PLOT_FIELDS: FieldSpec[] = [
       "Unavailable",
     ],
   },
-  { key: "reservedFor", label: "Reserved for (optional)" },
+  { key: "reservedFor", label: "Reserved for (optional)", required: false },
 ]
 
 export function EditPlotModal({
@@ -342,11 +344,12 @@ export function EditPlotModal({
     >
       {record && (
         <RecordForm
+          key={record.id}
           fields={PLOT_FIELDS}
           initialValues={{
-            type: record.type,
             size: record.size,
             price: String(record.price),
+            type: record.type,
             status: record.status,
             reservedFor: record.reservedFor ?? "",
           }}
@@ -354,9 +357,9 @@ export function EditPlotModal({
           onClose={onClose}
           onSubmit={async (v) => {
             const updated = await updatePlot(record.id, {
-              type: v.type as BurialType,
               size: v.size.trim(),
               price: Number(v.price),
+              type: v.type as PlotCategory,
               status: v.status as PlotStatus,
               reservedFor: v.reservedFor.trim(),
             })
@@ -396,10 +399,10 @@ export function DeletePlotModal({
 const RESERVATION_FIELDS: FieldSpec[] = [
   { key: "date", label: "Schedule date", type: "date" },
   {
-    key: "burialType",
-    label: "Burial type",
+    key: "plotCategory",
+    label: "Plot category",
     type: "select",
-    options: ["Private", "Vertical", "Public"],
+    options: PLOT_CATEGORIES,
   },
   {
     key: "status",
@@ -432,14 +435,14 @@ export function EditReservationModal({
       open={record !== null}
       onClose={onClose}
       title={`Edit Reservation — ${record?.reservationNumber ?? ""}`}
-      description="Update the schedule, burial type, status and verification."
+      description="Update the schedule, plot category, status and verification."
     >
       {record && (
         <RecordForm
           fields={RESERVATION_FIELDS}
           initialValues={{
             date: record.date,
-            burialType: record.burialType,
+            plotCategory: record.plotCategory,
             status: record.status,
             verification: record.verification,
           }}
@@ -448,7 +451,7 @@ export function EditReservationModal({
           onSubmit={async (v) => {
             const updated = await updateReservation(record.id, {
               date: v.date,
-              burialType: v.burialType as BurialType,
+              plotCategory: v.plotCategory as PlotCategory,
               status: v.status as Reservation["status"],
               verification: v.verification as Reservation["verification"],
             })

@@ -45,12 +45,13 @@ async function main() {
 
   console.log(`Seeding ${plots.length} plots...`)
   for (const p of plots) {
+    const values = { ...p, reservedFor: p.reservedFor ?? null }
     await db
       .insert(schema.plots)
-      .values({ ...p, reservedFor: p.reservedFor ?? null })
+      .values(values)
       .onConflictDoUpdate({
         target: schema.plots.id,
-        set: { ...p, reservedFor: p.reservedFor ?? null },
+        set: values,
       })
   }
 

@@ -11,15 +11,78 @@ create table if not exists plots (
   id text primary key, plot_number text not null,
   cemetery_id text not null references cemeteries(id),
   section text not null, "row" integer not null, "column" integer not null,
-  type text not null, size text not null, price integer not null,
-  status text not null, reserved_for text
+  size text not null, price integer not null,
+  status text not null, type text not null default 'Typical Block',
+  group_name text, reserved_for text
 );
+alter table plots add column if not exists type text not null default 'Typical Block';
+alter table plots alter column type set default 'Typical Block';
+alter table plots add column if not exists group_name text;
+-- Preserve the plot category when upgrading databases that stored it separately.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'plots' and column_name = 'category'
+  ) then
+    update plots set type = case category
+      when 'Typical Plot' then 'Typical Block'
+      when 'Premium Block' then 'Premium Lot'
+      when 'Special Premium Plot' then 'Special Premium Lot'
+      when 'Private' then 'Premium Lot'
+      when 'Vertical' then 'Special Premium Lot'
+      when 'Public' then 'Typical Block'
+      else category
+    end
+    where category is not null;
+    alter table plots drop column category;
+  end if;
+end $$;
+update plots set type = case type
+  when 'Typical Plot' then 'Typical Block'
+  when 'Premium Block' then 'Premium Lot'
+  when 'Special Premium Plot' then 'Special Premium Lot'
+  when 'Private' then 'Premium Lot'
+  when 'Vertical' then 'Special Premium Lot'
+  when 'Public' then 'Typical Block'
+  else type
+end
+where type in ('Typical Plot', 'Premium Block', 'Special Premium Plot', 'Private', 'Vertical', 'Public');
 create table if not exists reservations (
   id text primary key, reservation_number text not null, client_name text not null,
   cemetery_id text not null references cemeteries(id), plot_number text not null,
-  date text not null, burial_type text not null, status text not null,
-  verification text not null
+  date text not null, plot_category text not null default 'Typical Block',
+  status text not null, verification text not null
 );
+alter table reservations add column if not exists plot_category text not null default 'Typical Block';
+alter table reservations alter column plot_category set default 'Typical Block';
+update reservations set plot_category = case plot_category
+  when 'Typical Plot' then 'Typical Block'
+  when 'Premium Block' then 'Premium Lot'
+  when 'Special Premium Plot' then 'Special Premium Lot'
+  when 'Private' then 'Premium Lot'
+  when 'Vertical' then 'Special Premium Lot'
+  when 'Public' then 'Typical Block'
+  else plot_category
+end
+where plot_category in ('Typical Plot', 'Premium Block', 'Special Premium Plot', 'Private', 'Vertical', 'Public');
+-- Fold the retired burial type into plot category, then remove the old column.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_name = 'reservations' and column_name = 'burial_type'
+  ) then
+    update reservations set plot_category = case burial_type
+      when 'Private' then 'Premium Lot'
+      when 'Vertical' then 'Special Premium Lot'
+      when 'Public' then 'Typical Block'
+      else plot_category
+    end
+    where burial_type is not null;
+    alter table reservations drop column burial_type;
+  end if;
+end $$;
 create table if not exists clients (
   id text primary key, client_id text not null, full_name text not null,
   contact_number text not null, email text not null, type text not null,

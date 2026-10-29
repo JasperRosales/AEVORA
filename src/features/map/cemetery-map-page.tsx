@@ -14,13 +14,19 @@ import { updatePlotRow, useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { fadeUp, pageSwap, stagger } from "@/lib/motion"
 import { updatePlot } from "@/lib/neon-api"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import { plotStatusFill } from "@/lib/status"
-import type { BurialType, Plot, PlotStatus, Reservation } from "@/types/domain"
+import type { Plot, PlotCategory, PlotStatus, Reservation } from "@/types/domain"
 import { CreateReservationModal } from "@/features/overview/overview-action-modals"
-import { EditPlotModal } from "@/features/shared/record-dialogs"
+import {
+  DeletePlotModal,
+  EditPlotModal,
+} from "@/features/shared/record-dialogs"
 import { ReservationDetailsModal } from "@/features/shared/reservation-review-modal"
 import { PlotDetailsCard } from "./plot-details-panel"
 import { PlotGridBuilderModal } from "./plot-grid-builder"
+import { PlotGridGroupModal } from "./plot-grid-group-modal"
+import { PlotGroupModal } from "./plot-group-modal"
 import { PlotListView } from "./plot-list-view"
 import { PlotMapCard } from "./plot-map-canvas"
 
@@ -52,7 +58,7 @@ export function CemeteryMapPage() {
   const [cemeteryId, setCemeteryId] = useState("")
   // Falls back to the first cemetery until the user picks one (data loads async).
   const activeCemeteryId = cemeteryId || cemeteries[0]?.id || ""
-  const [burialType, setBurialType] = useState<BurialType | "All">("All")
+  const [category, setCategory] = useState<PlotCategory | "All">("All")
   const [section, setSection] = useState("All")
   const [status, setStatus] = useState<PlotStatus | "All">("All")
   const [search, setSearch] = useState("")
@@ -65,6 +71,11 @@ export function CemeteryMapPage() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const [reservingPlot, setReservingPlot] = useState<Plot | null>(null)
   const [editingPlot, setEditingPlot] = useState<Plot | null>(null)
+  const [deletingPlot, setDeletingPlot] = useState<Plot | null>(null)
+  const [groupingPlots, setGroupingPlots] = useState<Plot[] | null>(null)
+  const [gridGroupingPlots, setGridGroupingPlots] = useState<Plot[] | null>(
+    null
+  )
   const [reservationModal, setReservationModal] = useState<{
     reservation: Reservation
     mode: "view" | "review"
@@ -87,13 +98,13 @@ export function CemeteryMapPage() {
       plots.filter(
         (p) =>
           p.cemeteryId === activeCemeteryId &&
-          (burialType === "All" || p.type === burialType) &&
+          (category === "All" || p.type === category) &&
           (section === "All" || p.section === section) &&
           (status === "All" || p.status === status) &&
           (!search.trim() ||
             p.plotNumber.toLowerCase().includes(search.trim().toLowerCase()))
       ),
-    [activeCemeteryId, burialType, section, status, search, plots]
+    [activeCemeteryId, category, section, status, search, plots]
   )
 
   // Pre-fill the form with the first unused section letter, so "Add plot"
@@ -265,16 +276,18 @@ export function CemeteryMapPage() {
               ))}
             </select>
             <select
-              value={burialType}
+              value={category}
               onChange={(e) =>
-                setBurialType(e.target.value as BurialType | "All")
+                setCategory(e.target.value as PlotCategory | "All")
               }
               className="rounded-lg border border-deep/30 bg-cream px-2 py-1.5 text-sm"
             >
               <option value="All">All Types</option>
-              <option value="Private">Private</option>
-              <option value="Vertical">Vertical</option>
-              <option value="Public">Public</option>
+              {PLOT_CATEGORIES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
             </select>
             <select
               value={section}
@@ -315,7 +328,7 @@ export function CemeteryMapPage() {
             <button
               onClick={() => {
                 setCemeteryId("")
-                setBurialType("All")
+                setCategory("All")
                 setSection("All")
                 setStatus("All")
                 setSearch("")
@@ -378,13 +391,16 @@ export function CemeteryMapPage() {
             <PlotMapCard
               plots={plots}
               cemeteryId={activeCemeteryId}
-              burialType={burialType}
+              category={category}
               section={section}
               status={status}
               search={search}
               selected={selected}
               onSelect={selectPlot}
               onAddPlot={() => setBuilderOpen(true)}
+              onDeletePlot={setDeletingPlot}
+              onGroupPlots={setGroupingPlots}
+              onGridGroupPlots={setGridGroupingPlots}
               onStatusChange={changePlotStatus}
               statusBusy={statusBusy}
               statusError={statusError}
@@ -415,7 +431,7 @@ export function CemeteryMapPage() {
             // Clear filters so the new plots are fully visible on the map.
             setSection("All")
             setStatus("All")
-            setBurialType("All")
+            setCategory("All")
             setSearch("")
           }}
         />
@@ -447,6 +463,33 @@ export function CemeteryMapPage() {
         <EditPlotModal
           record={editingPlot}
           onClose={() => setEditingPlot(null)}
+        />
+      )}
+
+      <DeletePlotModal
+        record={deletingPlot}
+        onClose={() => setDeletingPlot(null)}
+      />
+
+      {groupingPlots && (
+        <PlotGroupModal
+          plots={groupingPlots}
+          onClose={() => setGroupingPlots(null)}
+          onGrouped={(message) => {
+            setGroupingPlots(null)
+            setNotice(message)
+          }}
+        />
+      )}
+
+      {gridGroupingPlots && (
+        <PlotGridGroupModal
+          plots={gridGroupingPlots}
+          onClose={() => setGridGroupingPlots(null)}
+          onGrouped={(message) => {
+            setGridGroupingPlots(null)
+            setNotice(message)
+          }}
         />
       )}
     </motion.div>

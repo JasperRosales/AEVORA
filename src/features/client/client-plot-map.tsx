@@ -13,7 +13,7 @@ import { Modal } from "@/components/ui/modal"
 import { StatusBadge } from "@/components/ui/status-badge"
 import type { ClientPlot } from "@/lib/client-api"
 import { plotStatusFill } from "@/lib/status"
-import type { BurialType, PlotStatus } from "@/types/domain"
+import type { PlotCategory, PlotStatus } from "@/types/domain"
 import { PlotLandMap } from "../map/plot-land-map"
 import { Card, pesos } from "./client-ui"
 
@@ -365,19 +365,19 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
 
 /**
  * The family-facing site plan. It uses the same land drawing as the office map,
- * so parcels keep their real proportions and every status is visible. The type
- * filter dims non-matching cells instead of hiding them, and only Available
- * cells can be reserved.
+ * so parcels keep their real proportions and every status is visible. The
+ * category filter dims non-matching cells instead of hiding them, and only
+ * Available cells can be reserved.
  */
 export function ClientPlotMap({
   plots,
   cemetery,
-  type,
+  category,
   onSelect,
 }: {
   plots: ClientPlot[]
   cemetery: string
-  type: BurialType | "All"
+  category: PlotCategory | "All"
   onSelect: (plot: ClientPlot) => void
 }) {
   const cemeteryPlots = plots.filter((p) => p.cemetery === cemetery)
@@ -393,7 +393,8 @@ export function ClientPlotMap({
           row: p.row,
           column: p.column,
           status: p.status,
-          type: p.type,
+          category: p.type,
+          groupName: p.group_name ?? undefined,
         })),
     }))
 
@@ -417,7 +418,7 @@ export function ClientPlotMap({
             const plot = cemeteryPlots.find((p) => p.id === id)
             if (plot) onSelect(plot)
           }}
-          isDimmed={(plot) => type !== "All" && plot.type !== type}
+          isDimmed={(plot) => category !== "All" && plot.category !== category}
           ariaLabel={`Plot map for ${cemetery}`}
         />
       </ZoomablePlotMap>
@@ -487,16 +488,24 @@ export function ClientPlotDetailsSheet({
           </div>
           <div>
             <dt className="text-[10px] tracking-wide text-deep/50 uppercase">
-              Burial type
-            </dt>
-            <dd className="font-medium">{plot.type}</dd>
-          </div>
-          <div>
-            <dt className="text-[10px] tracking-wide text-deep/50 uppercase">
               Size
             </dt>
             <dd className="font-medium">{plot.size}</dd>
           </div>
+          <div>
+            <dt className="text-[10px] tracking-wide text-deep/50 uppercase">
+              Type
+            </dt>
+            <dd className="font-medium">{plot.type}</dd>
+          </div>
+          {plot.group_name && (
+            <div>
+              <dt className="text-[10px] tracking-wide text-deep/50 uppercase">
+                Group
+              </dt>
+              <dd className="font-medium">{plot.group_name}</dd>
+            </div>
+          )}
         </dl>
 
         <p className="flex items-start gap-1.5 rounded-xl bg-cream px-3 py-2.5 text-[11px] text-deep/70">

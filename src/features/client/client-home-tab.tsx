@@ -62,7 +62,7 @@ export function HomeTab({
             </div>
             <p className="text-sm">
               Plot <span className="font-medium">{next.plot_number}</span> ·{" "}
-              {next.burial_type}
+              {next.plot_category}
             </p>
             <p className="text-sm text-deep/70">Scheduled {next.date}</p>
             <p className="flex items-center gap-1 text-xs text-deep/60">

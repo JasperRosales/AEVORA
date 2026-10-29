@@ -17,11 +17,12 @@ import {
   createReservation,
   type ClientPortalProvision,
 } from "@/lib/neon-api"
+import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import type {
-  BurialType,
   Client,
   Payment,
   Plot,
+  PlotCategory,
   PlotStatus,
 } from "@/types/domain"
 
@@ -50,7 +51,6 @@ export type ReportType = (typeof REPORT_TYPES)[number]
 
 const CLIENT_TYPES: Client["type"][] = ["Individual", "Corporate"]
 const CLIENT_STATUSES: Client["status"][] = ["Active", "Pending", "Inactive"]
-const BURIAL_TYPES: BurialType[] = ["Private", "Vertical", "Public"]
 const PLOT_STATUSES: PlotStatus[] = [
   "Available",
   "Waiting for Checking",
@@ -306,7 +306,7 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
   const [section, setSection] = useState("")
   const [row, setRow] = useState("")
   const [column, setColumn] = useState("")
-  const [type, setType] = useState<BurialType>("Private")
+  const [category, setCategory] = useState<PlotCategory>("Typical Block")
   const [size, setSize] = useState("")
   const [price, setPrice] = useState("")
   const [status, setStatus] = useState<PlotStatus>("Available")
@@ -323,7 +323,7 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
         section: section.trim(),
         row: Number(row),
         column: Number(column),
-        type,
+        type: category,
         size: size.trim(),
         price: Number(price),
         status,
@@ -367,18 +367,18 @@ function AddPlotForm({ onCreated, onClose }: FormProps) {
           </select>
         </div>
         <div>
-          <label className={LABEL} htmlFor="plot-type">
+          <label className={LABEL} htmlFor="plot-category">
             Type
           </label>
           <select
-            id="plot-type"
-            value={type}
-            onChange={(e) => setType(e.target.value as BurialType)}
+            id="plot-category"
+            value={category}
+            onChange={(e) => setCategory(e.target.value as PlotCategory)}
             className={INPUT}
           >
-            {BURIAL_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {PLOT_CATEGORIES.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </select>
@@ -517,8 +517,8 @@ function CreateReservationForm({
     initialPlot?.cemeteryId ?? ""
   )
   const [plotId, setPlotId] = useState(initialPlot?.id ?? "")
-  const [burialType, setBurialType] = useState<BurialType>(
-    initialPlot?.type ?? "Private"
+  const [plotCategory, setPlotCategory] = useState<PlotCategory>(
+    initialPlot?.type ?? "Typical Block"
   )
   const [date, setDate] = useState(today())
   const [busy, setBusy] = useState(false)
@@ -531,7 +531,7 @@ function CreateReservationForm({
   function onPickPlot(value: string) {
     setPlotId(value)
     const plot = plots.find((p) => p.id === value)
-    if (plot) setBurialType(plot.type)
+    if (plot) setPlotCategory(plot.type)
   }
 
   async function onSubmit(event: FormEvent) {
@@ -543,7 +543,7 @@ function CreateReservationForm({
         clientId,
         plotId,
         date,
-        burialType,
+        plotCategory,
       })
       insertReservation(created)
       onCreated(
@@ -635,18 +635,18 @@ function CreateReservationForm({
           </select>
         </div>
         <div>
-          <label className={LABEL} htmlFor="res-burial">
-            Burial type
+          <label className={LABEL} htmlFor="res-category">
+            Plot category
           </label>
           <select
-            id="res-burial"
-            value={burialType}
-            onChange={(e) => setBurialType(e.target.value as BurialType)}
+            id="res-category"
+            value={plotCategory}
+            onChange={(e) => setPlotCategory(e.target.value as PlotCategory)}
             className={INPUT}
           >
-            {BURIAL_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {t}
+            {PLOT_CATEGORIES.map((option) => (
+              <option key={option} value={option}>
+                {option}
               </option>
             ))}
           </select>

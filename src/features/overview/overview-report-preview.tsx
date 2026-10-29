@@ -107,13 +107,13 @@ export function ReportPreviewModal({
           />
           <div className="overflow-hidden rounded-2xl border border-deep/10 bg-white/25">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="report-preview-table w-full min-w-[560px] text-sm">
                 <thead>
-                  <tr                   className="bg-navy text-left text-[10px] tracking-wide !text-white uppercase">
+                  <tr className="bg-navy text-white text-left text-[10px] tracking-wide uppercase">
                     {report.table.columns.map((column) => (
                       <th
                         key={column}
-                        className="px-3 py-2.5 whitespace-nowrap"
+                        className="px-3 py-2.5 whitespace-nowrap text-white"
                       >
                         {column}
                       </th>

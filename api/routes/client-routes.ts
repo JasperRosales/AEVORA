@@ -17,7 +17,12 @@ const routes = new Hono<AppEnv>()
 // Path-scoped (not "*") so it can't leak onto sibling routes when mounted.
 routes.use("/client/*", authGuard)
 
-const BURIAL_TYPES = ["Private", "Vertical", "Public"] as const
+const PLOT_CATEGORIES = [
+  "Typical Block",
+  "Premium Lot",
+  "Special Premium Lot",
+  "Lot with Trees",
+] as const
 const PAYMENT_TYPES = [
   "Reservation Fee",
   "Down Payment",
@@ -31,7 +36,7 @@ interface ReservationRow {
   reservation_number: string
   plot_number: string
   date: string
-  burial_type: string
+  plot_category: string
   status: string
   verification: string
   cemetery: string
@@ -90,7 +95,7 @@ routes.get("/client/summary", async (c) => {
     ),
   ])
   const next = await pool.query(
-    `select reservation_number, plot_number, date, burial_type, status, verification
+    `select reservation_number, plot_number, date, plot_category, status, verification
      from reservations where client_name = $1 and status <> 'Cancelled'
      order by date asc limit 1`,
     [name]
@@ -121,7 +126,7 @@ routes.get("/client/plots", async (c) => {
   const all = c.req.query("scope") === "all"
   const rows = await pool.query<PlotRow>(
     `select p.id, p.plot_number, p.cemetery_id, p.section, p.row, p.column,
-            p.type, p.size, p.price, p.status,
+            p.size, p.price, p.status, p.type, p.group_name,
             ce.name as cemetery, ce.location
      from plots p join cemeteries ce on ce.id = p.cemetery_id
      where ($1::boolean or p.status = 'Available')
@@ -156,7 +161,7 @@ routes.post("/client/reservations", async (c) => {
     await conn.query("begin")
     const selected = await conn.query<PlotRow>(
       `select p.id, p.plot_number, p.cemetery_id, p.section, p.row, p.column,
-              p.type, p.size, p.price, p.status,
+              p.size, p.price, p.status, p.type, p.group_name,
               ce.name as cemetery, ce.location
        from plots p join cemeteries ce on ce.id = p.cemetery_id
        where p.id = $1
@@ -182,17 +187,17 @@ routes.post("/client/reservations", async (c) => {
       "select reservation_number from reservations"
     )
     const date = isDate(str(body.date)) ? str(body.date) : today()
-    const burialType = oneOf(
-      body.burialType,
-      BURIAL_TYPES,
-      oneOf(plot.type, BURIAL_TYPES, "Private")
+    const plotCategory = oneOf(
+      body.plotCategory,
+      PLOT_CATEGORIES,
+      oneOf(plot.type, PLOT_CATEGORIES, "Typical Block")
     )
 
     const created = await conn.query(
       `insert into reservations
-         (id, reservation_number, client_name, cemetery_id, plot_number, date, burial_type, status, verification)
+         (id, reservation_number, client_name, cemetery_id, plot_number, date, plot_category, status, verification)
        values ($1, $2, $3, $4, $5, $6, $7, 'Pending', 'Waiting for Checking')
-       returning id, reservation_number, plot_number, date, burial_type, status, verification`,
+       returning id, reservation_number, plot_number, date, plot_category, status, verification`,
       [
         randomUUID(),
         nextCode(
@@ -204,7 +209,7 @@ routes.post("/client/reservations", async (c) => {
         plot.cemetery_id,
         plot.plot_number,
         date,
-        burialType,
+        plotCategory,
       ]
     )
     await conn.query(
@@ -275,7 +280,7 @@ routes.post("/client/payments", async (c) => {
             coalesce(
               pl.price,
               (select p2.price from plots p2
-               where p2.cemetery_id = r.cemetery_id and p2.type = r.burial_type
+               where p2.cemetery_id = r.cemetery_id and p2.type = r.plot_category
                order by p2.price limit 1),
               0
             ) as price,
@@ -355,15 +360,15 @@ routes.get("/client/reservations", async (c) => {
   // The plot price rides along so the portal can show what is still owed
   // without a second request (and without exposing the staff plot register).
   // Older reservations can reference a plot number that is no longer in the
-  // register; for those, fall back to the current price of the same burial
-  // type in that cemetery.
+  // register; for those, fall back to the current price of the same plot
+  // category in that cemetery.
   const rows = await pool.query<ReservationRow>(
-    `select r.id, r.reservation_number, r.plot_number, r.date, r.burial_type, r.status, r.verification,
+    `select r.id, r.reservation_number, r.plot_number, r.date, r.plot_category, r.status, r.verification,
             ce.name as cemetery, ce.location,
             coalesce(
               pl.price,
               (select p2.price from plots p2
-               where p2.cemetery_id = r.cemetery_id and p2.type = r.burial_type
+               where p2.cemetery_id = r.cemetery_id and p2.type = r.plot_category
                order by p2.price limit 1),
               0
             ) as price

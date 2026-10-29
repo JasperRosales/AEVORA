@@ -15,10 +15,11 @@ export const plots = pgTable("plots", {
   section: text("section").notNull(),
   row: integer("row").notNull(),
   column: integer("column").notNull(),
-  type: text("type").notNull(),
   size: text("size").notNull(),
   price: integer("price").notNull(),
   status: text("status").notNull(),
+  type: text("type").notNull().default("Typical Block"),
+  groupName: text("group_name"),
   reservedFor: text("reserved_for"),
 })
 
@@ -31,7 +32,7 @@ export const reservations = pgTable("reservations", {
     .references(() => cemeteries.id),
   plotNumber: text("plot_number").notNull(),
   date: text("date").notNull(),
-  burialType: text("burial_type").notNull(),
+  plotCategory: text("plot_category").notNull().default("Typical Block"),
   status: text("status").notNull(),
   verification: text("verification").notNull(),
 })

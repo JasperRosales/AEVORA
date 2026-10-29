@@ -1,8 +1,17 @@
-import { LayoutGrid, Move, Plus, ZoomIn, ZoomOut } from "lucide-react"
+import {
+  Layers,
+  LayoutGrid,
+  Move,
+  Plus,
+  Trash2,
+  ZoomIn,
+  ZoomOut,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
+import { PLOT_CATEGORIES, plotCategoryStroke } from "@/lib/plot-category"
 import { plotStatusFill } from "@/lib/status"
-import type { BurialType, Plot, PlotStatus } from "@/types/domain"
+import type { Plot, PlotCategory, PlotStatus } from "@/types/domain"
 import { PlotLandMap, type LandMapPlot } from "./plot-land-map"
 
 const STATUSES = Object.keys(plotStatusFill) as PlotStatus[]
@@ -13,13 +22,16 @@ const STATUSES = Object.keys(plotStatusFill) as PlotStatus[]
 export function PlotMapCard({
   plots,
   cemeteryId,
-  burialType,
+  category,
   section,
   status,
   search,
   selected,
   onSelect,
   onAddPlot,
+  onDeletePlot,
+  onGroupPlots,
+  onGridGroupPlots,
   onStatusChange,
   statusBusy = false,
   statusError = null,
@@ -27,13 +39,16 @@ export function PlotMapCard({
 }: {
   plots: Plot[]
   cemeteryId: string
-  burialType: BurialType | "All"
+  category: PlotCategory | "All"
   section: string
   status: PlotStatus | "All"
   search: string
   selected: Plot | null
   onSelect: (plot: Plot | null) => void
   onAddPlot?: () => void
+  onDeletePlot?: (plot: Plot) => void
+  onGroupPlots?: (plots: Plot[]) => void
+  onGridGroupPlots?: (plots: Plot[]) => void
   onStatusChange: (plot: Plot, status: PlotStatus) => void
   statusBusy?: boolean
   statusError?: string | null
@@ -46,6 +61,7 @@ export function PlotMapCard({
 
   const mapData = useMemo(() => {
     const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
+    const query = search.trim().toLowerCase()
     const sections = [
       {
         name: "All",
@@ -55,16 +71,16 @@ export function PlotMapCard({
           row: p.row,
           column: p.column,
           status: p.status,
-          type: p.type,
+          category: p.type,
+          groupName: p.groupName,
         })),
       },
     ]
-    const query = search.trim().toLowerCase()
     const visibleIds = new Set(
       cemeteryPlots
         .filter(
           (p) =>
-            (burialType === "All" || p.type === burialType) &&
+            (category === "All" || p.type === category) &&
             (section === "All" || p.section === section) &&
             (status === "All" || p.status === status) &&
             (!query || p.plotNumber.toLowerCase().includes(query))
@@ -72,9 +88,28 @@ export function PlotMapCard({
         .map((p) => p.id)
     )
     return { sections, visibleIds }
-  }, [plots, cemeteryId, burialType, section, status, search])
+  }, [plots, cemeteryId, category, section, status, search])
 
-  if (mapData.sections.length === 0) {
+  const groups = useMemo(() => {
+    const byName = new Map<
+      string,
+      { name: string; category: Plot["type"]; count: number }
+    >()
+    for (const plot of plots) {
+      if (plot.cemeteryId !== cemeteryId || !plot.groupName) continue
+      const existing = byName.get(plot.groupName)
+      if (existing) existing.count += 1
+      else
+        byName.set(plot.groupName, {
+          name: plot.groupName,
+          category: plot.type,
+          count: 1,
+        })
+    }
+    return [...byName.values()]
+  }, [plots, cemeteryId])
+
+  if (mapData.sections[0].plots.length === 0) {
     return (
       <Card title="Cemetery Map">
         <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
@@ -125,6 +160,61 @@ export function PlotMapCard({
           >
             <Move size={13} /> {isDraggable ? "Done" : "Move"}
           </button>
+          {onGroupPlots && (
+            <button
+              type="button"
+              disabled={selectedPlots.size < 2}
+              onClick={() => {
+                const chosen = plots.filter((p) => selectedPlots.has(p.id))
+                if (chosen.length >= 2) onGroupPlots(chosen)
+              }}
+              title={
+                selectedPlots.size < 2
+                  ? "Ctrl/Shift-click to select at least two plots"
+                  : `Group ${selectedPlots.size} selected plots`
+              }
+              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Layers size={13} /> Group
+              {selectedPlots.size > 0 ? ` (${selectedPlots.size})` : ""}
+            </button>
+          )}
+          {onGridGroupPlots && (
+            <button
+              type="button"
+              disabled={selectedPlots.size < 2}
+              onClick={() => {
+                const chosen = plots.filter((p) => selectedPlots.has(p.id))
+                if (chosen.length >= 2) onGridGroupPlots(chosen)
+              }}
+              title={
+                selectedPlots.size < 2
+                  ? "Ctrl/Shift-click to select at least two plots"
+                  : `Group ${selectedPlots.size} selected plots as a row, column, or grid`
+              }
+              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <LayoutGrid size={13} /> Grid group
+              {selectedPlots.size > 0 ? ` (${selectedPlots.size})` : ""}
+            </button>
+          )}
+          {onDeletePlot && (
+            <button
+              type="button"
+              disabled={!selected}
+              onClick={() => {
+                if (selected) onDeletePlot(selected)
+              }}
+              title={
+                selected
+                  ? `Delete plot ${selected.plotNumber}`
+                  : "Select a plot to delete"
+              }
+              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Trash2 size={13} /> Delete plot
+            </button>
+          )}
           {onAddPlot && (
             <button
               type="button"
@@ -142,7 +232,9 @@ export function PlotMapCard({
           <p className="mr-auto text-xs font-medium text-deep">
             {selected
               ? `Plot ${selected.plotNumber} — set status`
-              : "Select a plot to set its status"}
+              : selectedPlots.size > 0
+                ? `${selectedPlots.size} plots selected — Ctrl/Shift-click to add more`
+                : "Select a plot, or Ctrl/Shift-click to select several"}
           </p>
           <div className="flex flex-wrap gap-1.5">
             {STATUSES.map((option) => {
@@ -202,20 +294,38 @@ export function PlotMapCard({
             sections={mapData.sections}
             sectionColumns={sectionColumns}
             selectedId={selected?.id ?? null}
-            onSelect={(id) => {
+            onSelect={(id, event) => {
+              const plot = plots.find((p) => p.id === id)
+              if (!plot) return
               if (isDraggable) {
-                const plot = plots.find((p) => p.id === id)
-                if (plot) {
-                  const newSet = new Set(selectedPlots)
-                  if (newSet.has(id)) newSet.delete(id)
-                  else newSet.add(id)
-                  setSelectedPlots(newSet)
-                  if (!isDraggable) onSelect(plot)
-                }
+                const next = new Set(selectedPlots)
+                if (next.has(id)) next.delete(id)
+                else next.add(id)
+                setSelectedPlots(next)
                 return
               }
-              const plot = plots.find((p) => p.id === id)
-              if (plot) onSelect(plot)
+              const additive = event.ctrlKey || event.metaKey || event.shiftKey
+              if (additive) {
+                const next = new Set(selectedPlots)
+                if (next.has(id)) {
+                  next.delete(id)
+                  if (selected?.id === id) {
+                    const lastId = [...next][next.size - 1]
+                    onSelect(
+                      lastId
+                        ? (plots.find((p) => p.id === lastId) ?? null)
+                        : null
+                    )
+                  }
+                } else {
+                  next.add(id)
+                  onSelect(plot)
+                }
+                setSelectedPlots(next)
+                return
+              }
+              setSelectedPlots(new Set([id]))
+              onSelect(plot)
             }}
             onBackgroundClick={() => {
               if (!isDraggable) onSelect(null)
@@ -232,22 +342,58 @@ export function PlotMapCard({
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
-        {STATUSES.map((option) => (
-          <span key={option} className="flex items-center gap-1">
-            <span
-              className="inline-block h-3 w-3 rounded-sm"
-              style={{
-                backgroundColor: plotStatusFill[option].fill,
-                border: plotStatusFill[option].stroke
-                  ? `1px solid ${plotStatusFill[option].stroke}`
-                  : undefined,
-              }}
-            />
-            {option}
-          </span>
-        ))}
+      <div className="mt-3 space-y-2 text-xs">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="font-semibold text-deep/60">Plot type:</span>
+          {PLOT_CATEGORIES.map((type) => (
+            <span key={type} className="flex items-center gap-1">
+              <span
+                className="inline-block h-3 w-3 rounded-sm"
+                style={{ backgroundColor: plotCategoryStroke[type] }}
+              />
+              {type}
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="font-semibold text-deep/60">Status:</span>
+          {STATUSES.map((option) => {
+            const status = plotStatusFill[option]
+            return (
+              <span key={option} className="flex items-center gap-1">
+                <span
+                  className="inline-block h-3 w-3 rounded-full border border-white"
+                  style={{ backgroundColor: status.stroke ?? status.fill }}
+                />
+                {option}
+              </span>
+            )
+          })}
+        </div>
       </div>
+
+      {groups.length > 0 && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-deep/10 pt-3 text-xs">
+          <span className="font-semibold text-deep/60">Groups</span>
+          {groups.map((group) => {
+            const stroke = plotCategoryStroke[group.category]
+            return (
+              <span
+                key={group.name}
+                className="flex items-center gap-1.5 rounded-full border bg-cream/60 px-2.5 py-1 font-medium text-deep"
+                style={{ borderColor: stroke }}
+              >
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full"
+                  style={{ backgroundColor: stroke }}
+                />
+                {group.name}
+                <span className="text-deep/50">({group.count})</span>
+              </span>
+            )
+          })}
+        </div>
+      )}
     </Card>
   )
 }

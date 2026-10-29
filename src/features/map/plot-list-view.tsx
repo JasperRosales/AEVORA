@@ -26,7 +26,8 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
             <tr className="text-left text-xs text-deep uppercase">
               <th>Plot Number</th>
               <th>Section</th>
-              <th>Burial Type</th>
+              <th>Type</th>
+              <th>Group</th>
               <th>Status</th>
               <th>Price</th>
               <th>Availability</th>
@@ -48,6 +49,7 @@ export function PlotListView({ plots }: { plots: Plot[] }) {
                 <td className="py-1.5">{p.plotNumber}</td>
                 <td>Section {p.section}</td>
                 <td>{p.type}</td>
+                <td>{p.groupName ?? "—"}</td>
                 <td>
                   <StatusBadge status={p.status} />
                 </td>

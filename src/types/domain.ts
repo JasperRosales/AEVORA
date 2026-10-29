@@ -1,7 +1,11 @@
 export type PlotStatus =
   "Available" | "Reserved" | "Occupied" | "Waiting for Checking" | "Unavailable"
 
-export type BurialType = "Private" | "Vertical" | "Public"
+export type PlotCategory =
+  | "Typical Block"
+  | "Premium Lot"
+  | "Special Premium Lot"
+  | "Lot with Trees"
 
 export type VerificationStatus =
   "Waiting for Checking" | "Under Review" | "Verified" | "Requires Action"
@@ -26,10 +30,11 @@ export interface Plot {
   section: string
   row: number
   column: number
-  type: BurialType
   size: string
   price: number
   status: PlotStatus
+  type: PlotCategory
+  groupName?: string
   reservedFor?: string
 }
 
@@ -40,7 +45,7 @@ export interface Reservation {
   cemeteryId: string
   plotNumber: string
   date: string
-  burialType: BurialType
+  plotCategory: PlotCategory
   status: ReservationStatus
   verification: VerificationStatus
 }

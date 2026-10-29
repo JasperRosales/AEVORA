@@ -134,6 +134,15 @@ export async function addAttachment(
   return row
 }
 
+/** Removes a reservation attachment after the API deletes its stored object. */
+export function removeAttachment(id: string) {
+  set({
+    attachments: state.attachments.filter(
+      (attachment) => attachment.id !== id
+    ),
+  })
+}
+
 /* ------------------ quick-action creates (local update) ------------------ */
 
 /** Appends a client created through the Add Client quick action. */
@@ -201,6 +210,13 @@ export function removeClient(id: string) {
 
 export function updatePlotRow(row: Plot) {
   set({ plots: replace(state.plots, row) })
+}
+
+/** Applies several updated plot rows at once (bulk group/category changes). */
+export function updatePlotRows(rows: Plot[]) {
+  if (rows.length === 0) return
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  set({ plots: state.plots.map((plot) => byId.get(plot.id) ?? plot) })
 }
 
 export function removePlot(id: string) {
