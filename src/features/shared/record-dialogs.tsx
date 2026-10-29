@@ -356,13 +356,19 @@ export function EditPlotModal({
           submitLabel="Save Changes"
           onClose={onClose}
           onSubmit={async (v) => {
+            const type = v.type as PlotCategory
             const updated = await updatePlot(record.id, {
               size: v.size.trim(),
               price: Number(v.price),
-              type: v.type as PlotCategory,
+              type,
               status: v.status as PlotStatus,
               reservedFor: v.reservedFor.trim(),
             })
+            if (updated.type !== type) {
+              throw new Error(
+                `The API saved this plot as "${updated.type}" instead of "${type}". Deploy the latest Neon API and try again.`
+              )
+            }
             updatePlotRow(updated)
             onClose()
           }}

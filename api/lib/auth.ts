@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto"
 import { createRemoteJWKSet, jwtVerify } from "jose"
 import type { Context, Next } from "hono"
-import { pool } from "./db"
+import { pool } from "../services/database"
 
 const API_KEY = process.env.API_KEY
 const AUTH_BASE = process.env.NEON_AUTH_BASE_URL?.replace(/\/+$/, "") ?? null

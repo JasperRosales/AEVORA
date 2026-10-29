@@ -12,7 +12,7 @@
 import { Hono } from "hono"
 import { cors } from "hono/cors"
 import { authIssuer } from "./lib/auth"
-import { pool } from "./lib/db"
+import { pool } from "./services/database"
 import { BUCKET } from "./lib/storage"
 import accountRoutes from "./routes/account-routes"
 import attachmentRoutes from "./routes/attachment-routes"

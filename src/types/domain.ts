@@ -3,8 +3,8 @@ export type PlotStatus =
 
 export type PlotCategory =
   | "Typical Block"
-  | "Premium Lot"
-  | "Special Premium Lot"
+  | "Premium Plot"
+  | "Special Premium Plot"
   | "Lot with Trees"
 
 export type VerificationStatus =

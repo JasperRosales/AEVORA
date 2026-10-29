@@ -27,11 +27,12 @@ begin
   ) then
     update plots set type = case category
       when 'Typical Plot' then 'Typical Block'
-      when 'Premium Block' then 'Premium Lot'
-      when 'Special Premium Plot' then 'Special Premium Lot'
-      when 'Private' then 'Premium Lot'
-      when 'Vertical' then 'Special Premium Lot'
       when 'Public' then 'Typical Block'
+      when 'Premium Block' then 'Premium Plot'
+      when 'Premium Lot' then 'Premium Plot'
+      when 'Private' then 'Premium Plot'
+      when 'Special Premium Lot' then 'Special Premium Plot'
+      when 'Vertical' then 'Special Premium Plot'
       else category
     end
     where category is not null;
@@ -40,14 +41,15 @@ begin
 end $$;
 update plots set type = case type
   when 'Typical Plot' then 'Typical Block'
-  when 'Premium Block' then 'Premium Lot'
-  when 'Special Premium Plot' then 'Special Premium Lot'
-  when 'Private' then 'Premium Lot'
-  when 'Vertical' then 'Special Premium Lot'
   when 'Public' then 'Typical Block'
+  when 'Premium Block' then 'Premium Plot'
+  when 'Premium Lot' then 'Premium Plot'
+  when 'Private' then 'Premium Plot'
+  when 'Special Premium Lot' then 'Special Premium Plot'
+  when 'Vertical' then 'Special Premium Plot'
   else type
 end
-where type in ('Typical Plot', 'Premium Block', 'Special Premium Plot', 'Private', 'Vertical', 'Public');
+where type in ('Typical Plot', 'Public', 'Premium Block', 'Premium Lot', 'Private', 'Special Premium Lot', 'Vertical');
 create table if not exists reservations (
   id text primary key, reservation_number text not null, client_name text not null,
   cemetery_id text not null references cemeteries(id), plot_number text not null,
@@ -58,14 +60,15 @@ alter table reservations add column if not exists plot_category text not null de
 alter table reservations alter column plot_category set default 'Typical Block';
 update reservations set plot_category = case plot_category
   when 'Typical Plot' then 'Typical Block'
-  when 'Premium Block' then 'Premium Lot'
-  when 'Special Premium Plot' then 'Special Premium Lot'
-  when 'Private' then 'Premium Lot'
-  when 'Vertical' then 'Special Premium Lot'
   when 'Public' then 'Typical Block'
+  when 'Premium Block' then 'Premium Plot'
+  when 'Premium Lot' then 'Premium Plot'
+  when 'Private' then 'Premium Plot'
+  when 'Special Premium Lot' then 'Special Premium Plot'
+  when 'Vertical' then 'Special Premium Plot'
   else plot_category
 end
-where plot_category in ('Typical Plot', 'Premium Block', 'Special Premium Plot', 'Private', 'Vertical', 'Public');
+where plot_category in ('Typical Plot', 'Public', 'Premium Block', 'Premium Lot', 'Private', 'Special Premium Lot', 'Vertical');
 -- Fold the retired burial type into plot category, then remove the old column.
 do $$
 begin
@@ -74,8 +77,8 @@ begin
     where table_name = 'reservations' and column_name = 'burial_type'
   ) then
     update reservations set plot_category = case burial_type
-      when 'Private' then 'Premium Lot'
-      when 'Vertical' then 'Special Premium Lot'
+      when 'Private' then 'Premium Plot'
+      when 'Vertical' then 'Special Premium Plot'
       when 'Public' then 'Typical Block'
       else plot_category
     end

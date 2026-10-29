@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { Hono, type Context } from "hono"
 import { authGuard, clientRowFor, type AppEnv, type Caller } from "../lib/auth"
-import { pool } from "../lib/db"
+import { pool } from "../services/database"
 import { notifyStaff, pesos } from "../lib/notifications"
 import { isDate, nextCode, oneOf, str, today } from "../lib/records"
 import { signDownloadUrl } from "../lib/storage"
@@ -19,8 +19,8 @@ routes.use("/client/*", authGuard)
 
 const PLOT_CATEGORIES = [
   "Typical Block",
-  "Premium Lot",
-  "Special Premium Lot",
+  "Premium Plot",
+  "Special Premium Plot",
   "Lot with Trees",
 ] as const
 const PAYMENT_TYPES = [

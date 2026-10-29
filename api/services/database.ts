@@ -3,8 +3,8 @@ import { drizzle } from "drizzle-orm/node-postgres"
 import { Pool } from "pg"
 
 /**
- * The branch's Postgres connection, shared by every route module.
- * `attachDatabasePool` registers it with the Neon Functions runtime.
+ * Shared server-side connection to the branch's Neon Postgres database.
+ * Route services use Drizzle for queries and the pool for raw SQL.
  */
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 5 })
 attachDatabasePool(pool)

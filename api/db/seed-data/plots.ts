@@ -11,14 +11,14 @@ const COLS = 6
 
 const categories: PlotCategory[] = [
   "Typical Block",
-  "Premium Lot",
-  "Special Premium Lot",
+  "Premium Plot",
+  "Special Premium Plot",
   "Lot with Trees",
 ]
 const lotSpecs: Record<PlotCategory, { size: string; price: number }> = {
   "Typical Block": { size: "1.2m x 1.0m", price: 15000 },
-  "Premium Lot": { size: "2.4m x 1.2m", price: 85000 },
-  "Special Premium Lot": { size: "2.4m x 1.2m", price: 120000 },
+  "Premium Plot": { size: "2.4m x 1.2m", price: 85000 },
+  "Special Premium Plot": { size: "2.4m x 1.2m", price: 120000 },
   "Lot with Trees": { size: "2.4m x 1.2m", price: 95000 },
 }
 const statuses: PlotStatus[] = [

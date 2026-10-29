@@ -25,8 +25,6 @@ import {
 import { ReservationDetailsModal } from "@/features/shared/reservation-review-modal"
 import { PlotDetailsCard } from "./plot-details-panel"
 import { PlotGridBuilderModal } from "./plot-grid-builder"
-import { PlotGridGroupModal } from "./plot-grid-group-modal"
-import { PlotGroupModal } from "./plot-group-modal"
 import { PlotListView } from "./plot-list-view"
 import { PlotMapCard } from "./plot-map-canvas"
 
@@ -72,10 +70,6 @@ export function CemeteryMapPage() {
   const [reservingPlot, setReservingPlot] = useState<Plot | null>(null)
   const [editingPlot, setEditingPlot] = useState<Plot | null>(null)
   const [deletingPlot, setDeletingPlot] = useState<Plot | null>(null)
-  const [groupingPlots, setGroupingPlots] = useState<Plot[] | null>(null)
-  const [gridGroupingPlots, setGridGroupingPlots] = useState<Plot[] | null>(
-    null
-  )
   const [reservationModal, setReservationModal] = useState<{
     reservation: Reservation
     mode: "view" | "review"
@@ -399,8 +393,6 @@ export function CemeteryMapPage() {
               onSelect={selectPlot}
               onAddPlot={() => setBuilderOpen(true)}
               onDeletePlot={setDeletingPlot}
-              onGroupPlots={setGroupingPlots}
-              onGridGroupPlots={setGridGroupingPlots}
               onStatusChange={changePlotStatus}
               statusBusy={statusBusy}
               statusError={statusError}
@@ -470,28 +462,6 @@ export function CemeteryMapPage() {
         record={deletingPlot}
         onClose={() => setDeletingPlot(null)}
       />
-
-      {groupingPlots && (
-        <PlotGroupModal
-          plots={groupingPlots}
-          onClose={() => setGroupingPlots(null)}
-          onGrouped={(message) => {
-            setGroupingPlots(null)
-            setNotice(message)
-          }}
-        />
-      )}
-
-      {gridGroupingPlots && (
-        <PlotGridGroupModal
-          plots={gridGroupingPlots}
-          onClose={() => setGridGroupingPlots(null)}
-          onGrouped={(message) => {
-            setGridGroupingPlots(null)
-            setNotice(message)
-          }}
-        />
-      )}
     </motion.div>
   )
 }

@@ -1,7 +1,7 @@
 import { Hono } from "hono"
 import { eq } from "drizzle-orm"
 import { attachmentGuard, authGuard, ownsReservation, type AppEnv } from "../lib/auth"
-import { db } from "../lib/db"
+import { db } from "../services/database"
 import { notifyStaff } from "../lib/notifications"
 import { deleteObject, putObject, signDownloadUrl } from "../lib/storage"
 import * as schema from "../db/schema"

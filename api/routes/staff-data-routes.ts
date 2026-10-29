@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto"
 import { and, desc, eq, inArray } from "drizzle-orm"
 import { Hono } from "hono"
 import { provisionClientAccount, staffGuard, type AppEnv } from "../lib/auth"
-import { db, pool } from "../lib/db"
+import { db, pool } from "../services/database"
 import { isDate, nextCode, oneOf, str, today } from "../lib/records"
 import * as schema from "../db/schema"
 
@@ -18,8 +18,8 @@ const CLIENT_TYPES = ["Individual", "Corporate"] as const
 const CLIENT_STATUSES = ["Active", "Inactive", "Pending"] as const
 const PLOT_CATEGORIES = [
   "Typical Block",
-  "Premium Lot",
-  "Special Premium Lot",
+  "Premium Plot",
+  "Special Premium Plot",
   "Lot with Trees",
 ] as const
 const PLOT_STATUSES = [
@@ -201,9 +201,16 @@ routes.post("/plots", staffGuard, async (c) => {
   const column = Number(body.column)
   const size = str(body.size)
   const price = Number(body.price)
+  const type = PLOT_CATEGORIES.find((category) => category === body.type)
 
   if (!cemeteryId || !section || !size) {
     return c.json({ error: "Cemetery, section and size are required" }, 400)
+  }
+  if (!type) {
+    return c.json(
+      { error: "Type must be one of the four supported plot types" },
+      400
+    )
   }
   if (
     !Number.isInteger(row) ||
@@ -253,7 +260,7 @@ routes.post("/plots", staffGuard, async (c) => {
       size,
       price: Math.round(price),
       status: oneOf(body.status, PLOT_STATUSES, "Available"),
-      type: oneOf(body.type, PLOT_CATEGORIES, "Typical Block"),
+      type,
       groupName: str(body.groupName) || null,
       reservedFor: str(body.reservedFor) || null,
     })
@@ -714,7 +721,17 @@ routes.patch("/plots/:id", staffGuard, async (c) => {
 
   const size = str(body.size) || existing.size
   const submittedType = body.type ?? body.category
-  const type = normalizePlotType(str(submittedType))
+  const normalizedType =
+    submittedType === undefined
+      ? normalizePlotType(existing.type)
+      : normalizePlotType(str(submittedType))
+  const type = PLOT_CATEGORIES.find((category) => category === normalizedType)
+  if (!type) {
+    return c.json(
+      { error: "Type must be one of the four supported plot types" },
+      400
+    )
+  }
   let price = existing.price
   if (body.price !== undefined) {
     price = Number(body.price)
@@ -732,7 +749,7 @@ routes.patch("/plots/:id", staffGuard, async (c) => {
       size,
       price,
       status: oneOf(body.status, PLOT_STATUSES, existing.status),
-      type: oneOf(type, PLOT_CATEGORIES, existing.type),
+      type,
       groupName:
         body.groupName === undefined
           ? existing.groupName
@@ -1018,11 +1035,12 @@ function normalizePlotType(type: string) {
     case "Public":
       return "Typical Block"
     case "Premium Block":
+    case "Premium Lot":
     case "Private":
-      return "Premium Lot"
-    case "Special Premium Plot":
+      return "Premium Plot"
+    case "Special Premium Lot":
     case "Vertical":
-      return "Special Premium Lot"
+      return "Special Premium Plot"
     default:
       return type
   }

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto"
-import { pool } from "./db"
+import { pool } from "../services/database"
 
 /** Notification categories understood by the staff notification centre. */
 export type NotificationType =

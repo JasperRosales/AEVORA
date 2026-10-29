@@ -1,5 +1,4 @@
 import {
-  Layers,
   LayoutGrid,
   Move,
   Plus,
@@ -30,8 +29,6 @@ export function PlotMapCard({
   onSelect,
   onAddPlot,
   onDeletePlot,
-  onGroupPlots,
-  onGridGroupPlots,
   onStatusChange,
   statusBusy = false,
   statusError = null,
@@ -47,8 +44,6 @@ export function PlotMapCard({
   onSelect: (plot: Plot | null) => void
   onAddPlot?: () => void
   onDeletePlot?: (plot: Plot) => void
-  onGroupPlots?: (plots: Plot[]) => void
-  onGridGroupPlots?: (plots: Plot[]) => void
   onStatusChange: (plot: Plot, status: PlotStatus) => void
   statusBusy?: boolean
   statusError?: string | null
@@ -160,44 +155,6 @@ export function PlotMapCard({
           >
             <Move size={13} /> {isDraggable ? "Done" : "Move"}
           </button>
-          {onGroupPlots && (
-            <button
-              type="button"
-              disabled={selectedPlots.size < 2}
-              onClick={() => {
-                const chosen = plots.filter((p) => selectedPlots.has(p.id))
-                if (chosen.length >= 2) onGroupPlots(chosen)
-              }}
-              title={
-                selectedPlots.size < 2
-                  ? "Ctrl/Shift-click to select at least two plots"
-                  : `Group ${selectedPlots.size} selected plots`
-              }
-              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Layers size={13} /> Group
-              {selectedPlots.size > 0 ? ` (${selectedPlots.size})` : ""}
-            </button>
-          )}
-          {onGridGroupPlots && (
-            <button
-              type="button"
-              disabled={selectedPlots.size < 2}
-              onClick={() => {
-                const chosen = plots.filter((p) => selectedPlots.has(p.id))
-                if (chosen.length >= 2) onGridGroupPlots(chosen)
-              }}
-              title={
-                selectedPlots.size < 2
-                  ? "Ctrl/Shift-click to select at least two plots"
-                  : `Group ${selectedPlots.size} selected plots as a row, column, or grid`
-              }
-              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <LayoutGrid size={13} /> Grid group
-              {selectedPlots.size > 0 ? ` (${selectedPlots.size})` : ""}
-            </button>
-          )}
           {onDeletePlot && (
             <button
               type="button"

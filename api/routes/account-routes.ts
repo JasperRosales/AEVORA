@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto"
 import { Hono } from "hono"
 import { adminGuard, authBaseUrl, authGuard, provisionClientAccount, type AppEnv } from "../lib/auth"
-import { db, pool } from "../lib/db"
+import { db, pool } from "../services/database"
 import * as schema from "../db/schema"
 
 /** Who am I + admin-only account management (staff, admin and client users). */

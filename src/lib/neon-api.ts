@@ -193,7 +193,7 @@ export interface NewPlot {
   size: string
   price: number
   status: Plot["status"]
-  type?: Plot["type"]
+  type: Plot["type"]
   groupName?: string
 }
 
