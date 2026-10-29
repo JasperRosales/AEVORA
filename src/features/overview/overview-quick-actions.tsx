@@ -212,7 +212,7 @@ export function QuickActionsCard({ onNavigate, onPrefetch }: DashboardProps) {
   )
 }
 
-export function ReportsCard({ onNavigate }: DashboardProps) {
+export function ReportsCard() {
   const data = useData()
   const [error, setError] = useState<string | null>(null)
   /** The analytics + preview currently on screen, if any. */
@@ -237,7 +237,7 @@ export function ReportsCard({ onNavigate }: DashboardProps) {
 
   /**
    * Builds the report from the current records, previews it, and notes it in
-   * the Reports log. Logging is best-effort: the analytics and CSV download
+   * the Reports log. Logging is best-effort: the analytics and PDF export
    * come from local data, so a failed call only shows a note.
    */
   function generate(type: ReportType) {
@@ -277,10 +277,6 @@ export function ReportsCard({ onNavigate }: DashboardProps) {
         <ReportPreviewModal
           report={preview.report}
           onClose={() => setPreview(null)}
-          onOpenReports={() => {
-            setPreview(null)
-            onNavigate?.("Reports")
-          }}
         />
       )}
       <div className="grid grid-cols-3 grid-rows-2 gap-3">
@@ -305,7 +301,7 @@ export function ReportsCard({ onNavigate }: DashboardProps) {
             </motion.button>
             <span className="pointer-events-none absolute -top-9 left-1/2 z-10 rounded-md bg-navy px-2 py-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <span className="flex items-center gap-1 text-[11px] whitespace-nowrap text-cream">
-                <Download size={11} /> Preview &amp; CSV
+                <Download size={11} /> Preview &amp; PDF
               </span>
             </span>
           </div>

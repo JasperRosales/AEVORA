@@ -1,22 +1,15 @@
 import { CalendarCheck, CreditCard, FileSignature, Users } from "lucide-react"
 import { useState } from "react"
 import { motion } from "motion/react"
-import { usePagination } from "@/lib/use-pagination"
 import { Card } from "@/components/ui/card"
-import { DonutChart } from "@/components/ui/donut-chart"
 import { KpiTile } from "@/components/ui/kpi-tile"
-import { Pagination } from "@/components/ui/pagination"
-import { StatusBadge } from "@/components/ui/status-badge"
 import { insertReport, useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
-import { EASE_OUT, fadeUp, rowItem, rowList, stagger } from "@/lib/motion"
-import {
-  DeleteReportModal,
-  EditReportModal,
-} from "@/features/shared/record-dialogs"
+import { EASE_OUT, fadeUp, stagger } from "@/lib/motion"
 import { createReport } from "@/lib/neon-api"
 import { ReportPreviewModal } from "@/features/overview/overview-report-preview"
-import type { GeneratedReport, Payment } from "@/types/domain"
+import { PlotOccupancySummary } from "@/features/overview/overview-occupancy"
+import type { Payment, Plot } from "@/types/domain"
 import type { Report } from "@/features/overview/overview-reports"
 
 function groupRevenue(list: Payment[], mode: "week" | "month" | "year") {
@@ -26,10 +19,7 @@ function groupRevenue(list: Payment[], mode: "week" | "month" | "year") {
     const d = new Date(p.date)
     const [sortKey, label] =
       mode === "year"
-        ? [
-            new Date(d.getFullYear(), 0, 1).getTime(),
-            String(d.getFullYear()),
-          ]
+        ? [new Date(d.getFullYear(), 0, 1).getTime(), String(d.getFullYear())]
         : mode === "month"
           ? [
               new Date(d.getFullYear(), d.getMonth(), 1).getTime(),
@@ -80,6 +70,12 @@ function buildFilteredPaymentsReport(
     type: "Payments",
     summary: [
       { label: "Transactions", value: String(payments.length) },
+      {
+        label: "Paid Transactions",
+        value: String(
+          payments.filter((payment) => payment.status === "Paid").length
+        ),
+      },
       { label: "Collected", value: formatCurrency(paid) },
       { label: "Outstanding", value: formatCurrency(pending) },
       { label: "Cemetery", value: cemeteryLabel },
@@ -109,6 +105,222 @@ function buildFilteredPaymentsReport(
   }
 }
 
+const PLOT_STATUSES = [
+  { label: "Available", color: "#16a34a" },
+  { label: "Reserved", color: "#2563eb" },
+  { label: "Occupied", color: "#dc2626" },
+  { label: "Waiting for Checking", color: "#eab308" },
+  { label: "Unavailable", color: "#64748b" },
+] as const
+
+function buildPlotAvailabilityReport(
+  plots: Plot[],
+  cemeteries: { id: string; name: string }[],
+  cemeteryId: string
+): Report {
+  const rows = cemeteries
+    .filter(
+      (cemetery) =>
+        cemeteryId === "All Cemeteries" || cemetery.id === cemeteryId
+    )
+    .map((cemetery) => {
+      const cemeteryPlots = plots.filter(
+        (plot) => plot.cemeteryId === cemetery.id
+      )
+      const counts = Object.fromEntries(
+        PLOT_STATUSES.map(({ label }) => [
+          label,
+          cemeteryPlots.filter((plot) => plot.status === label).length,
+        ])
+      ) as Record<(typeof PLOT_STATUSES)[number]["label"], number>
+      const occupied = counts.Occupied + counts.Reserved
+      return {
+        cemetery,
+        plots: cemeteryPlots,
+        counts,
+        occupancy: Math.round((occupied / (cemeteryPlots.length || 1)) * 100),
+        availability: Math.round(
+          (counts.Available / (cemeteryPlots.length || 1)) * 100
+        ),
+      }
+    })
+  const scopedPlots = rows.flatMap((row) => row.plots)
+  const totalAvailable = scopedPlots.filter(
+    (plot) => plot.status === "Available"
+  ).length
+  const totalReserved = scopedPlots.filter(
+    (plot) => plot.status === "Reserved"
+  ).length
+  const totalOccupied = scopedPlots.filter(
+    (plot) => plot.status === "Occupied"
+  ).length
+  const totalOccupancy = Math.round(
+    ((totalOccupied + totalReserved) / (scopedPlots.length || 1)) * 100
+  )
+
+  return {
+    type: "Plot Occupancy",
+    summary: [
+      { label: "Cemeteries", value: String(rows.length) },
+      { label: "Total plots", value: String(scopedPlots.length) },
+      { label: "Available", value: String(totalAvailable) },
+      { label: "Reserved", value: String(totalReserved) },
+      { label: "Occupied", value: String(totalOccupied) },
+      { label: "Occupancy rate", value: `${totalOccupancy}%` },
+    ],
+    breakdown: PLOT_STATUSES.map(({ label }) => ({
+      label,
+      value: `${scopedPlots.filter((plot) => plot.status === label).length} · ${Math.round((scopedPlots.filter((plot) => plot.status === label).length / (scopedPlots.length || 1)) * 100)}%`,
+    })),
+    table: {
+      columns: [
+        "Cemetery",
+        "Total plots",
+        "Available",
+        "Reserved",
+        "Occupied",
+        "Waiting",
+        "Unavailable",
+        "Availability",
+        "Occupancy",
+      ],
+      rows: rows.map((row) => [
+        row.cemetery.name,
+        row.plots.length,
+        row.counts.Available,
+        row.counts.Reserved,
+        row.counts.Occupied,
+        row.counts["Waiting for Checking"],
+        row.counts.Unavailable,
+        `${row.availability}%`,
+        `${row.occupancy}%`,
+      ]),
+    },
+  }
+}
+
+function CemeteryPlotAnalytics({
+  cemeteries,
+  plots,
+}: {
+  cemeteries: { id: string; name: string }[]
+  plots: Plot[]
+}) {
+  const data = cemeteries.map((cemetery) => {
+    const cemeteryPlots = plots.filter(
+      (plot) => plot.cemeteryId === cemetery.id
+    )
+    const counts = PLOT_STATUSES.map(({ label }) => ({
+      label,
+      count: cemeteryPlots.filter((plot) => plot.status === label).length,
+    }))
+    const occupied =
+      counts.find((item) => item.label === "Occupied")!.count +
+      counts.find((item) => item.label === "Reserved")!.count
+    return {
+      name: cemetery.name,
+      total: cemeteryPlots.length,
+      counts,
+      occupancy: Math.round((occupied / (cemeteryPlots.length || 1)) * 100),
+      availability: Math.round(
+        ((counts.find((item) => item.label === "Available")?.count ?? 0) /
+          (cemeteryPlots.length || 1)) *
+          100
+      ),
+    }
+  })
+
+  return (
+    <>
+      <Card title="Plot Availability by Cemetery">
+        <div className="space-y-4">
+          {data.map((item) => (
+            <div key={item.name}>
+              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                <span className="truncate font-medium text-deep">
+                  {item.name}
+                </span>
+                <span className="shrink-0 text-deep/60">
+                  {item.total} plots · {item.availability}% available
+                </span>
+              </div>
+              <div
+                className="flex h-3 overflow-hidden rounded-full bg-navy/10"
+                role="img"
+                aria-label={`${item.name}: ${item.counts.map((status) => `${status.label} ${status.count}`).join(", ")}`}
+              >
+                {item.counts.map((status) => {
+                  const color = PLOT_STATUSES.find(
+                    (entry) => entry.label === status.label
+                  )!.color
+                  return status.count > 0 && item.total > 0 ? (
+                    <span
+                      key={status.label}
+                      title={`${status.label}: ${status.count}`}
+                      style={{
+                        backgroundColor: color,
+                        width: `${(status.count / item.total) * 100}%`,
+                      }}
+                    />
+                  ) : null
+                })}
+              </div>
+            </div>
+          ))}
+          {data.length === 0 && <ChartEmpty />}
+        </div>
+        <div className="mt-4 flex flex-wrap gap-x-3 gap-y-2 border-t border-deep/10 pt-3">
+          {PLOT_STATUSES.map((status) => (
+            <span
+              key={status.label}
+              className="flex items-center gap-1.5 text-[10px] text-deep/70"
+            >
+              <span
+                className="size-2.5 rounded-full"
+                style={{ backgroundColor: status.color }}
+              />
+              {status.label}
+            </span>
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Occupancy Rate by Cemetery">
+        <div className="space-y-4">
+          {data.map((item) => (
+            <div key={item.name}>
+              <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                <span className="truncate font-medium text-deep">
+                  {item.name}
+                </span>
+                <span className="shrink-0 font-semibold text-deep/70 tabular-nums">
+                  {item.occupancy}% · {item.total} plots
+                </span>
+              </div>
+              <div
+                className="h-3 overflow-hidden rounded-full bg-navy/10"
+                role="img"
+                aria-label={`${item.name}: ${item.occupancy}% occupied or reserved`}
+              >
+                <motion.div
+                  className="h-full rounded-full bg-teal"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${item.occupancy}%` }}
+                  transition={{ duration: 0.65, ease: EASE_OUT }}
+                />
+              </div>
+            </div>
+          ))}
+          {data.length === 0 && <ChartEmpty />}
+        </div>
+        <p className="mt-4 border-t border-deep/10 pt-3 text-[10px] text-deep/60">
+          Occupancy includes reserved and occupied plots.
+        </p>
+      </Card>
+    </>
+  )
+}
+
 /** Shown when a chart has no rows yet (e.g. before data loads). */
 function ChartEmpty() {
   return (
@@ -116,6 +328,16 @@ function ChartEmpty() {
       No data to display yet.
     </p>
   )
+}
+
+function chartLabel(value: number, formatValue?: (value: number) => string) {
+  if (!formatValue) return String(Math.round(value))
+  const formatted = formatValue(value)
+  if (!formatted.startsWith("₱")) return formatted
+  if (value >= 1_000_000) return `₱${(value / 1_000_000).toFixed(1)}m`
+  if (value >= 10_000) return `₱${Math.round(value / 1_000)}k`
+  if (value >= 1_000) return `₱${(value / 1_000).toFixed(1)}k`
+  return formatted
 }
 
 function BarChart({
@@ -126,44 +348,63 @@ function BarChart({
   formatValue?: (value: number) => string
 }) {
   const width = 520
-  const height = 180
-  const pad = 30
+  const height = 220
+  const pad = { top: 20, right: 18, bottom: 42, left: 58 }
   if (data.length === 0) return <ChartEmpty />
   const max = Math.max(...data.map((d) => d.value), 1)
   const n = data.length || 1
-  const slot = (width - pad * 2) / n
+  const chartWidth = width - pad.left - pad.right
+  const chartHeight = height - pad.top - pad.bottom
+  const slot = chartWidth / n
   const bw = slot * 0.55
   const signature = data.map((d) => `${d.label}:${d.value}`).join("|")
   return (
     <motion.svg
       key={signature}
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full"
+      className="w-full overflow-visible"
+      role="img"
+      aria-label="Bar chart"
     >
-      {[0.25, 0.5, 0.75, 1].map((t) => (
-        <line
-          key={t}
-          x1={pad}
-          x2={width - pad}
-          y1={height - pad - t * (height - pad * 2)}
-          y2={height - pad - t * (height - pad * 2)}
-          stroke="#061633"
-          strokeOpacity="0.08"
-        />
-      ))}
+      {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+        const y = pad.top + chartHeight * (1 - t)
+        return (
+          <g key={t}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y}
+              y2={y}
+              stroke="#061633"
+              strokeOpacity={t === 0 ? 0.2 : 0.08}
+              strokeDasharray={t === 0 ? undefined : "3 5"}
+            />
+            <text
+              x={pad.left - 8}
+              y={y + 3}
+              textAnchor="end"
+              fontSize="9"
+              fill="#4F7894"
+            >
+              {chartLabel(max * t, formatValue)}
+            </text>
+          </g>
+        )
+      })}
       {data.map((d, i) => {
-        const x = pad + i * slot + (slot - bw) / 2
-        const h = (d.value / max) * (height - pad * 2)
-        const y = height - pad - h
+        const x = pad.left + i * slot + (slot - bw) / 2
+        const h = (d.value / max) * chartHeight
+        const y = pad.top + chartHeight - h
         return (
           <g key={d.label}>
             <motion.rect
               x={x}
               width={bw}
-              rx={4}
+              rx={Math.min(7, bw / 2)}
               fill={d.color}
-              initial={{ y: height - pad, height: 0 }}
+              initial={{ y: pad.top + chartHeight, height: 0 }}
               animate={{ y, height: h }}
+              style={{ filter: "drop-shadow(0 3px 4px rgba(6,22,51,0.12))" }}
               transition={{
                 duration: 0.55,
                 delay: 0.05 + i * 0.05,
@@ -172,25 +413,25 @@ function BarChart({
             />
             <motion.text
               x={x + bw / 2}
-              y={y - 6}
+              y={Math.max(pad.top + 10, y - 7)}
               textAnchor="middle"
-              fontSize="10"
+              fontSize="9"
               fontWeight="600"
               fill="#061633"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3, delay: 0.3 + i * 0.05 }}
             >
-              {formatValue ? formatValue(d.value) : d.value}
+              {chartLabel(d.value, formatValue)}
             </motion.text>
             <text
               x={x + bw / 2}
-              y={height - 10}
+              y={height - 13}
               textAnchor="middle"
-              fontSize="10"
+              fontSize="9"
               fill="#4F7894"
             >
-              {d.label}
+              {d.label.length > 12 ? `${d.label.slice(0, 11)}…` : d.label}
             </text>
           </g>
         )
@@ -207,50 +448,63 @@ function AreaChart({
   formatValue?: (value: number) => string
 }) {
   const width = 520
-  const height = 180
-  const pad = 30
+  const height = 220
+  const pad = { top: 24, right: 20, bottom: 42, left: 58 }
   if (data.length === 0) return <ChartEmpty />
   const max = Math.max(...data.map((d) => d.amount), 1)
+  const chartWidth = width - pad.left - pad.right
+  const chartHeight = height - pad.top - pad.bottom
   const points = data.map((d, i) => ({
     x:
-      pad +
+      pad.left +
       (data.length === 1
-        ? (width - pad * 2) / 2
-        : (i / (data.length - 1)) * (width - pad * 2)),
-    y: height - pad - (d.amount / max) * (height - pad * 2),
+        ? chartWidth / 2
+        : (i / (data.length - 1)) * chartWidth),
+    y: pad.top + chartHeight - (d.amount / max) * chartHeight,
     ...d,
   }))
   const line = points
     .map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`)
     .join(" ")
-  const area = `${line} L${points[points.length - 1].x},${height - pad} L${points[0].x},${height - pad} Z`
+  const area = `${line} L${points[points.length - 1].x},${pad.top + chartHeight} L${points[0].x},${pad.top + chartHeight} Z`
   const signature = points.map((p) => `${p.label}:${p.amount}`).join("|")
   return (
     <motion.svg
       key={signature}
       viewBox={`0 0 ${width} ${height}`}
-      className="w-full"
+      className="w-full overflow-visible"
+      role="img"
+      aria-label="Revenue trend chart"
     >
-      <defs>
-        <linearGradient id="areaMonthly" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#4F7894" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#4F7894" stopOpacity="0.02" />
-        </linearGradient>
-      </defs>
-      {[0.25, 0.5, 0.75, 1].map((t) => (
-        <line
-          key={t}
-          x1={pad}
-          x2={width - pad}
-          y1={height - pad - t * (height - pad * 2)}
-          y2={height - pad - t * (height - pad * 2)}
-          stroke="#061633"
-          strokeOpacity="0.08"
-        />
-      ))}
+      {[0, 0.25, 0.5, 0.75, 1].map((t) => {
+        const y = pad.top + chartHeight * (1 - t)
+        return (
+          <g key={t}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y}
+              y2={y}
+              stroke="#061633"
+              strokeOpacity={t === 0 ? 0.2 : 0.08}
+              strokeDasharray={t === 0 ? undefined : "3 5"}
+            />
+            <text
+              x={pad.left - 8}
+              y={y + 3}
+              textAnchor="end"
+              fontSize="9"
+              fill="#4F7894"
+            >
+              {chartLabel(max * t, formatValue)}
+            </text>
+          </g>
+        )
+      })}
       <motion.path
         d={area}
-        fill="url(#areaMonthly)"
+        fill="#4F7894"
+        fillOpacity="0.12"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.2, ease: EASE_OUT }}
@@ -259,9 +513,10 @@ function AreaChart({
         d={line}
         fill="none"
         stroke="#4F7894"
-        strokeWidth="2.5"
+        strokeWidth="3"
         strokeLinecap="round"
         strokeLinejoin="round"
+        style={{ filter: "drop-shadow(0 2px 3px rgba(6,22,51,0.14))" }}
         initial={{ pathLength: 0, opacity: 0 }}
         animate={{ pathLength: 1, opacity: 1 }}
         transition={{ duration: 0.9, ease: EASE_OUT }}
@@ -271,30 +526,33 @@ function AreaChart({
           <motion.circle
             cx={p.x}
             cy={p.y}
-            r="3.5"
-            fill="#061633"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            r="4"
+            fill="#fff"
+            stroke="#102B52"
+            strokeWidth="2.5"
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            style={{ transformOrigin: `${p.x}px ${p.y}px` }}
             transition={{ duration: 0.3, delay: 0.45 + i * 0.05 }}
           />
           <motion.text
             x={p.x}
-            y={p.y - 8}
+            y={Math.max(pad.top + 10, p.y - 9)}
             textAnchor="middle"
-            fontSize="10"
+            fontSize="9"
             fontWeight="600"
             fill="#061633"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.3, delay: 0.5 + i * 0.05 }}
           >
-            {formatValue ? formatValue(p.amount) : p.amount}
+            {chartLabel(p.amount, formatValue)}
           </motion.text>
           <text
             x={p.x}
-            y={height - 10}
+            y={height - 13}
             textAnchor="middle"
-            fontSize="10"
+            fontSize="9"
             fill="#4F7894"
           >
             {p.label}
@@ -306,28 +564,16 @@ function AreaChart({
 }
 
 export function ReportsPage() {
-  const {
-    agreements,
-    cemeteries,
-    clients,
-    generatedReports,
-    payments,
-    plots,
-    reservations,
-  } = useData()
-  const {
-    page,
-    pageCount,
-    current: reportRows,
-    setPage,
-  } = usePagination(generatedReports, 8)
+  const { agreements, cemeteries, clients, payments, plots, reservations } =
+    useData()
 
+  const [reportKind, setReportKind] = useState<"Payments" | "Plot Occupancy">(
+    "Payments"
+  )
   const [cemetery, setCemetery] = useState("All Cemeteries")
   const [month, setMonth] = useState("All Months")
   const [appliedCemetery, setAppliedCemetery] = useState("All Cemeteries")
   const [appliedMonth, setAppliedMonth] = useState("All Months")
-  const [editing, setEditing] = useState<GeneratedReport | null>(null)
-  const [deleting, setDeleting] = useState<GeneratedReport | null>(null)
   const [preview, setPreview] = useState<Report | null>(null)
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
@@ -353,19 +599,6 @@ export function ReportsPage() {
     appliedCemetery === "All Cemeteries"
       ? reservations
       : reservations.filter((r) => r.cemeteryId === appliedCemetery)
-  const plotCounts = {
-    Available: filteredPlots.filter((p) => p.status === "Available").length,
-    Reserved: filteredPlots.filter((p) => p.status === "Reserved").length,
-    Occupied: filteredPlots.filter((p) => p.status === "Occupied").length,
-    Waiting: filteredPlots.filter((p) => p.status === "Waiting for Checking")
-      .length,
-  }
-  const occupancyRate = Math.round(
-    ((plotCounts.Occupied + plotCounts.Reserved) /
-      (filteredPlots.length || 1)) *
-      100
-  )
-
   const reservationStatus = (
     ["Pending", "Under Verification", "Confirmed", "Cancelled"] as const
   ).map((s) => ({
@@ -378,11 +611,6 @@ export function ReportsPage() {
     setAppliedCemetery(cemetery)
     setGenerationError(null)
 
-    const reportPayments = payments.filter(
-      (payment) =>
-        (cemetery === "All Cemeteries" || payment.cemeteryId === cemetery) &&
-        (month === "All Months" || payment.date.startsWith(month))
-    )
     const cemeteryLabel =
       cemetery === "All Cemeteries"
         ? cemetery
@@ -394,11 +622,19 @@ export function ReportsPage() {
             month: "long",
             year: "numeric",
           })
-    const report = buildFilteredPaymentsReport(
-      reportPayments,
-      cemeteryLabel,
-      monthLabel
-    )
+    const report =
+      reportKind === "Plot Occupancy"
+        ? buildPlotAvailabilityReport(plots, cemeteries, cemetery)
+        : buildFilteredPaymentsReport(
+            payments.filter(
+              (payment) =>
+                (cemetery === "All Cemeteries" ||
+                  payment.cemeteryId === cemetery) &&
+                (month === "All Months" || payment.date.startsWith(month))
+            ),
+            cemeteryLabel,
+            monthLabel
+          )
     setPreview(report)
     setGenerating(true)
 
@@ -406,7 +642,7 @@ export function ReportsPage() {
       insertReport(
         await createReport({
           type: report.type,
-          name: `${report.type} Report${month !== "All Months" ? ` - ${monthLabel}` : ""}`,
+          name: `${report.type} Report${cemetery !== "All Cemeteries" ? ` - ${cemeteryLabel}` : " - All Cemeteries"}${reportKind === "Payments" && month !== "All Months" ? ` - ${monthLabel}` : ""}`,
         })
       )
     } catch (error) {
@@ -470,24 +706,41 @@ export function ReportsPage() {
       </motion.div>
 
       <motion.div variants={fadeUp}>
-        <Card title="Filters">
+        <Card title="Generate Report">
           <div className="flex flex-wrap items-center gap-3">
             <select
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
+              aria-label="Report type"
+              value={reportKind}
+              onChange={(e) =>
+                setReportKind(e.target.value as "Payments" | "Plot Occupancy")
+              }
               className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
             >
-              <option value="All Months">All Months</option>
-              {monthOptions.map((m) => (
-                <option key={m} value={m}>
-                  {new Date(`${m}-01`).toLocaleDateString("en-US", {
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </option>
-              ))}
+              <option value="Payments">Payments</option>
+              <option value="Plot Occupancy">
+                Plot Occupancy & Availability
+              </option>
             </select>
+            {reportKind === "Payments" && (
+              <select
+                aria-label="Payment report month"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
+              >
+                <option value="All Months">All Months</option>
+                {monthOptions.map((m) => (
+                  <option key={m} value={m}>
+                    {new Date(`${m}-01`).toLocaleDateString("en-US", {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </option>
+                ))}
+              </select>
+            )}
             <select
+              aria-label="Cemetery scope"
               value={cemetery}
               onChange={(e) => setCemetery(e.target.value)}
               className="rounded-lg border border-deep/30 bg-cream px-3 py-1.5 text-sm"
@@ -508,6 +761,7 @@ export function ReportsPage() {
             </button>
             <button
               onClick={() => {
+                setReportKind("Payments")
                 setMonth("All Months")
                 setCemetery("All Cemeteries")
                 setAppliedMonth("All Months")
@@ -583,27 +837,7 @@ export function ReportsPage() {
 
       <motion.div variants={fadeUp} className="grid gap-4 md:grid-cols-2">
         <Card title="Plot Status Breakdown">
-          <DonutChart
-            centerLabel={`${occupancyRate}%`}
-            segments={[
-              {
-                label: "Available",
-                value: plotCounts.Available,
-                color: "#16a34a",
-              },
-              {
-                label: "Reserved",
-                value: plotCounts.Reserved,
-                color: "#2563eb",
-              },
-              {
-                label: "Occupied",
-                value: plotCounts.Occupied,
-                color: "#dc2626",
-              },
-              { label: "Waiting", value: plotCounts.Waiting, color: "#eab308" },
-            ]}
-          />
+          <PlotOccupancySummary plots={filteredPlots} />
         </Card>
 
         <Card title="Reservations by Status">
@@ -617,70 +851,12 @@ export function ReportsPage() {
         </Card>
       </motion.div>
 
-      <motion.div variants={fadeUp}>
-        <Card title="Recent Reports">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-deep uppercase">
-                  <th>Report Name</th>
-                  <th>Type</th>
-                  <th>Date Generated</th>
-                  <th>Generated By</th>
-                  <th>Status</th>
-                  <th />
-                </tr>
-              </thead>
-              <motion.tbody
-                key={page}
-                variants={rowList}
-                initial="hidden"
-                animate="show"
-              >
-                {reportRows.map((r) => (
-                  <motion.tr
-                    key={r.id}
-                    variants={rowItem}
-                    className="border-t border-deep/10"
-                  >
-                    <td className="py-1.5">{r.name}</td>
-                    <td>{r.type}</td>
-                    <td>{r.dateGenerated}</td>
-                    <td>{r.generatedBy}</td>
-                    <td>
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => setEditing(r)}
-                        className="neu-button px-2.5 py-1 text-[11px]"
-                      >
-                        Edit
-                      </button>{" "}
-                      <button
-                        onClick={() => setDeleting(r)}
-                        className="neu-button px-2.5 py-1 text-[11px]"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </motion.tr>
-                ))}
-              </motion.tbody>
-            </table>
-          </div>
-          <Pagination page={page} pageCount={pageCount} onChange={setPage} />
-        </Card>
+      <motion.div variants={fadeUp} className="grid gap-4 xl:grid-cols-2">
+        <CemeteryPlotAnalytics cemeteries={cemeteries} plots={plots} />
       </motion.div>
 
-      <EditReportModal record={editing} onClose={() => setEditing(null)} />
-      <DeleteReportModal record={deleting} onClose={() => setDeleting(null)} />
       {preview && (
-        <ReportPreviewModal
-          report={preview}
-          onClose={() => setPreview(null)}
-          onOpenReports={() => setPreview(null)}
-        />
+        <ReportPreviewModal report={preview} onClose={() => setPreview(null)} />
       )}
     </motion.div>
   )

@@ -7,8 +7,7 @@ import type { ReportType } from "./overview-action-modals"
  *
  * A report is a summary (chips of headline numbers), a breakdown (label/value
  * rows with counts and shares) and a detail table — all computed client-side
- * from the shared staff store, matching how the Reports page derives its charts.
- * The same numbers are what the CSV download writes out.
+ * from the shared staff store.
  */
 
 export interface ReportTable {
@@ -428,35 +427,86 @@ function buildInformationCheckingReport(data: DataState): Report {
   }
 }
 
-/* --------------------------------- CSV export ------------------------------ */
+/* --------------------------------- PDF export ------------------------------ */
 
-/** Wraps a cell in quotes when it contains a comma, quote or newline. */
-function csvCell(value: string | number): string {
-  const text = String(value)
-  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+function escapeHtml(value: string | number): string {
+  const entities: Record<string, string> = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }
+  return String(value).replace(/[&<>"']/g, (character) => entities[character])
 }
 
-/** The report's detail table as CSV text. */
-export function reportToCsv(report: Report): string {
-  const [header, ...body] = [report.table.columns, ...report.table.rows]
-  return [header, ...body].map((row) => row.map(csvCell).join(",")).join("\n")
-}
+/** Opens a print-ready report; the browser can save the printout as a PDF. */
+export function downloadReportPdf(report: Report) {
+  const printWindow = window.open("", "_blank")
+  if (!printWindow) throw new Error("Allow pop-ups to create the PDF report.")
 
-/** Downloads the report's detail table as a CSV file. */
-export function downloadReportCsv(report: Report) {
-  downloadFile(
-    `${report.type.toLowerCase().replace(/\s+/g, "-")}-report-${new Date().toISOString().slice(0, 10)}.csv`,
-    reportToCsv(report),
-    "text/csv;charset=utf-8"
-  )
-}
+  const summary = report.summary
+    .map(
+      (item) =>
+        `<div class="summary"><small>${escapeHtml(item.label)}</small><strong>${escapeHtml(item.value)}</strong></div>`
+    )
+    .join("")
+  const breakdown = report.breakdown.length
+    ? `<section><h2>At a glance</h2><div class="breakdown">${report.breakdown
+        .map(
+          (item) =>
+            `<div><span>${escapeHtml(item.label)}</span><strong>${escapeHtml(item.value)}</strong></div>`
+        )
+        .join("")}</div></section>`
+    : ""
+  const header = report.table.columns
+    .map((column) => `<th>${escapeHtml(column)}</th>`)
+    .join("")
+  const rows = report.table.rows.length
+    ? report.table.rows
+        .map(
+          (row) =>
+            `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`
+        )
+        .join("")
+    : `<tr><td colspan="${report.table.columns.length}" class="empty">Nothing to report yet.</td></tr>`
+  const date = new Date().toLocaleString("en-US")
 
-/** Triggers a client-side file download from in-memory content. */
-export function downloadFile(filename: string, content: string, mime: string) {
-  const url = URL.createObjectURL(new Blob([content], { type: mime }))
-  const link = document.createElement("a")
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
+  printWindow.document.open()
+  printWindow.document.write(`<!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <title>${escapeHtml(report.type)} Report</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { margin: 0; padding: 32px; color: #102b52; font: 12px Arial, sans-serif; }
+          header { border-bottom: 3px solid #102b52; margin-bottom: 24px; padding-bottom: 16px; }
+          header p { color: #4f7894; margin: 5px 0 0; }
+          h1 { color: #061633; font-size: 24px; margin: 0; }
+          h2 { color: #061633; font-size: 14px; margin: 24px 0 10px; }
+          .summary { border: 1px solid #dbe2e8; border-radius: 8px; padding: 12px; }
+          .summary small { color: #4f7894; display: block; margin-bottom: 6px; }
+          .summary strong { color: #061633; font-size: 16px; }
+          .summaries { display: grid; gap: 10px; grid-template-columns: repeat(3, 1fr); }
+          .breakdown { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }
+          .breakdown div { border-bottom: 1px solid #dbe2e8; display: flex; justify-content: space-between; padding: 8px; }
+          table { border-collapse: collapse; margin-top: 10px; width: 100%; }
+          th { background: #102b52; color: white; text-align: left; }
+          th, td { border: 1px solid #dbe2e8; padding: 8px; }
+          tr:nth-child(even) { background: #f4f6f8; }
+          .empty { color: #4f7894; padding: 24px; text-align: center; }
+          @page { margin: 14mm; }
+          @media print { body { padding: 0; } tr { break-inside: avoid; } }
+        </style>
+      </head>
+      <body>
+        <header><h1>${escapeHtml(report.type)} Report</h1><p>Aevora Cemetery Management System · Generated ${escapeHtml(date)}</p></header>
+        <section><div class="summaries">${summary}</div></section>
+        ${breakdown}
+        <section><h2>Detailed records</h2><table><thead><tr>${header}</tr></thead><tbody>${rows}</tbody></table></section>
+        <script>window.addEventListener("load", () => window.setTimeout(() => window.print(), 150));</script>
+      </body>
+    </html>`)
+  printWindow.document.close()
 }

@@ -6,7 +6,7 @@ import { EASE_OUT } from "@/lib/motion"
 import type { Plot } from "@/types/domain"
 
 /** Donut chart + occupancy bar for the filtered plots. */
-export function OccupancyCard({ plots }: { plots: Plot[] }) {
+export function PlotOccupancySummary({ plots }: { plots: Plot[] }) {
   const counts = countByStatus(plots)
 
   const occupancy = plots.length
@@ -15,7 +15,7 @@ export function OccupancyCard({ plots }: { plots: Plot[] }) {
     : 0
 
   return (
-    <Card title="Plot Occupancy Overview">
+    <>
       <DonutChart
         centerLabel={`${occupancy}%`}
         segments={[
@@ -56,6 +56,14 @@ export function OccupancyCard({ plots }: { plots: Plot[] }) {
         </div>
         <p className="mt-1 text-xs text-deep">Occupancy rate {occupancy}%</p>
       </div>
+    </>
+  )
+}
+
+export function OccupancyCard({ plots }: { plots: Plot[] }) {
+  return (
+    <Card title="Plot Occupancy Overview">
+      <PlotOccupancySummary plots={plots} />
     </Card>
   )
 }

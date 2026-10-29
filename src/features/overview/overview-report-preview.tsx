@@ -1,34 +1,29 @@
-import {
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Download,
-  FileText,
-} from "lucide-react"
+import { BarChart3, CheckCircle2, Download, FileText } from "lucide-react"
+import { useState } from "react"
 import { motion } from "motion/react"
 import type { ReactNode } from "react"
 import { Modal } from "@/components/ui/modal"
 import { rowItem, rowList, stagger } from "@/lib/motion"
 import {
-  downloadReportCsv,
+  downloadReportPdf,
   type Report,
   type ReportSection,
 } from "./overview-reports"
 
 /**
  * Preview of a generated report: headline numbers, a grouped breakdown, and the
- * detail table that the CSV download writes out. Opened by the report tiles on
+ * detail table that the PDF export writes out. Opened by the report tiles on
  * the Overview (and by the Generate Report action).
  */
 export function ReportPreviewModal({
   report,
   onClose,
-  onOpenReports,
 }: {
   report: Report
   onClose: () => void
-  onOpenReports: () => void
 }) {
+  const [pdfError, setPdfError] = useState<string | null>(null)
+
   return (
     <Modal
       open
@@ -69,7 +64,7 @@ export function ReportPreviewModal({
 
         <motion.div
           variants={rowItem}
-          className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+          className="grid grid-cols-2 gap-3 md:grid-cols-3"
         >
           {report.summary.map((item) => (
             <SummaryTile key={item.label} {...item} />
@@ -109,7 +104,7 @@ export function ReportPreviewModal({
             <div className="overflow-x-auto">
               <table className="report-preview-table w-full min-w-[560px] text-sm">
                 <thead>
-                  <tr className="bg-navy text-white text-left text-[10px] tracking-wide uppercase">
+                  <tr className="bg-navy text-left text-[10px] tracking-wide text-white uppercase">
                     {report.table.columns.map((column) => (
                       <th
                         key={column}
@@ -161,23 +156,28 @@ export function ReportPreviewModal({
       <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
         <motion.button
           type="button"
-          onClick={onOpenReports}
-          whileTap={{ scale: 0.97 }}
-          className="neu-button px-3 py-2 text-sm"
-        >
-          <FileText size={13} className="mr-1 inline" /> View in Reports
-          <ArrowRight size={13} className="ml-1 inline" />
-        </motion.button>
-        <motion.button
-          type="button"
-          onClick={() => downloadReportCsv(report)}
+          onClick={() => {
+            setPdfError(null)
+            try {
+              downloadReportPdf(report)
+            } catch (error) {
+              setPdfError(
+                error instanceof Error ? error.message : String(error)
+              )
+            }
+          }}
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.97 }}
           className="rounded-lg bg-navy px-4 py-2 text-sm font-semibold text-cream transition hover:bg-deep"
         >
-          <Download size={13} className="mr-1 inline" /> Download CSV
+          <Download size={13} className="mr-1 inline" /> Download PDF
         </motion.button>
       </div>
+      {pdfError && (
+        <p role="status" className="mt-2 text-right text-xs text-red-600">
+          {pdfError}
+        </p>
+      )}
     </Modal>
   )
 }

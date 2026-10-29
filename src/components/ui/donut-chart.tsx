@@ -16,7 +16,7 @@ export function DonutChart({
   centerLabel: string
 }) {
   const total = segments.reduce((sum, s) => sum + s.value, 0) || 1
-  const radius = 60
+  const radius = 58
   const circumference = 2 * Math.PI * radius
   // Re-key the chart when the data changes so the arcs redraw on filter change.
   const signature = segments.map((s) => `${s.label}:${s.value}`).join("|")
@@ -27,22 +27,34 @@ export function DonutChart({
   )
 
   return (
-    <div className="flex items-center gap-6">
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
       <motion.svg
         key={signature}
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.45, ease: EASE_OUT }}
-        className="h-52 w-52 shrink-0"
+        className="h-44 w-44 shrink-0 drop-shadow-sm"
         viewBox="0 0 150 150"
+        role="img"
+        aria-label={`Breakdown chart, ${centerLabel} total`}
       >
         <circle
           cx={75}
           cy={75}
           r={radius}
           fill="none"
-          stroke="#e5e7eb"
-          strokeWidth={18}
+          stroke="#102B52"
+          strokeOpacity={0.08}
+          strokeWidth={16}
+        />
+        <circle
+          cx={75}
+          cy={75}
+          r={48}
+          fill="none"
+          stroke="#102B52"
+          strokeOpacity={0.05}
+          strokeWidth={1}
         />
         {segments.map((segment, index) => {
           const dash = dashes[index]
@@ -55,7 +67,8 @@ export function DonutChart({
               r={radius}
               fill="none"
               stroke={segment.color}
-              strokeWidth={18}
+              strokeWidth={16}
+              strokeLinecap="round"
               strokeOpacity={segment.opacity ?? 1}
               strokeDashoffset={-current}
               initial={{
@@ -84,7 +97,7 @@ export function DonutChart({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.35, duration: 0.3 }}
-          className="fill-navy text-lg font-bold"
+          className="fill-navy text-xl font-bold"
         >
           {centerLabel}
         </motion.text>
@@ -94,21 +107,23 @@ export function DonutChart({
         variants={stagger(0.05, 0.18)}
         initial="hidden"
         animate="show"
-        className="flex-1 text-base"
+        className="grid w-full flex-1 grid-cols-1 gap-1 text-sm sm:text-base"
       >
         {segments.map((segment) => (
           <motion.div
             key={segment.label}
             variants={staggerItem}
-            className="grid grid-cols-[auto_auto_1fr_auto] items-center gap-x-3 py-1"
+            className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-x-2 rounded-xl px-2 py-1.5 transition-colors hover:bg-cream/70"
           >
             <span
-              className="inline-block h-3 w-3 rounded-sm"
+              className="inline-block size-2.5 rounded-full ring-2 ring-white"
               style={{ backgroundColor: segment.color }}
             />
-            <span>{segment.label}:</span>
-            <strong className="text-center">{segment.value}</strong>
-            <strong className="text-right">
+            <span className="truncate text-deep/75">{segment.label}</span>
+            <strong className="min-w-8 text-right tabular-nums">
+              {segment.value}
+            </strong>
+            <strong className="min-w-10 rounded-full bg-cream px-2 py-0.5 text-right text-xs text-deep/70 tabular-nums">
               {total ? Math.round((segment.value / total) * 100) : 0}%
             </strong>
           </motion.div>

@@ -26,13 +26,7 @@ import {
  * cards receive the shell's navigation so their tiles can switch screens.
  */
 export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
-  const {
-    activities,
-    agreements,
-    payments,
-    plots,
-    reservations,
-  } = useData()
+  const { activities, agreements, payments, plots, reservations } = useData()
   const [cemeteryId, setCemeteryId] = useState("all")
   const [reservationModal, setReservationModal] = useState<{
     reservation: Reservation
@@ -127,7 +121,7 @@ export function OverviewPage({ onNavigate, onPrefetch }: DashboardProps) {
 
       <motion.div variants={fadeUp} className="grid gap-4 lg:grid-cols-2">
         <RecentActivityCard activities={activities} />
-        <ReportsCard onNavigate={onNavigate} />
+        <ReportsCard />
       </motion.div>
 
       {reservationModal && (
