@@ -4,8 +4,9 @@ import {
   List,
   MapPin,
   RefreshCw,
+  Upload,
 } from "lucide-react"
-import { useMemo, useState, type FormEvent } from "react"
+import { useMemo, useRef, useState, type FormEvent } from "react"
 import { motion } from "motion/react"
 import { Modal } from "@/components/ui/modal"
 import { reloadClientData, useClientData } from "@/data/client-store"
@@ -15,6 +16,7 @@ import {
   type ClientReservation,
 } from "@/lib/client-api"
 import { EASE_OUT, stagger, staggerItem } from "@/lib/motion"
+import { uploadAttachment } from "@/lib/neon-api"
 import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import { ClientPlotDetailsSheet, ClientPlotMap } from "./client-plot-map"
 import { PaymentSheet } from "./client-payment-sheet"
@@ -207,7 +209,7 @@ export function PlotsTab({
               className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
                 view === option
                   ? "bg-navy text-cream"
-                  : "text-deep/60 hover:text-deep"
+                  : "neu-button text-deep/70"
               }`}
             >
               {option === "map" ? <LayoutGrid size={13} /> : <List size={13} />}
@@ -228,7 +230,7 @@ export function PlotsTab({
           <button
             onClick={() => reloadClientData()}
             aria-label="Refresh plots"
-            className="rounded-lg p-1.5 text-deep/50 transition hover:bg-cream hover:text-deep"
+            className="neu-button flex size-8 items-center justify-center text-deep/70"
           >
             <RefreshCw size={13} />
           </button>
@@ -247,7 +249,7 @@ export function PlotsTab({
                 <button
                   key={name}
                   onClick={() => setCemetery(name)}
-                  className="rounded-xl border border-deep/20 bg-white px-3 py-2 text-xs font-medium text-deep transition active:bg-cream"
+                  className="neu-button px-3 py-2 text-xs font-medium text-deep"
                 >
                   {name}
                 </button>
@@ -317,7 +319,7 @@ export function PlotsTab({
                 <motion.button
                   onClick={() => setSelected(plot)}
                   whileTap={{ scale: 0.98 }}
-                  className="mt-3 w-full rounded-xl bg-navy py-2.5 text-sm font-semibold text-cream transition active:bg-deep"
+                  className="neu-button mt-3 w-full py-2.5 text-sm font-semibold text-deep"
                 >
                   Reserve this plot
                 </motion.button>
@@ -329,7 +331,7 @@ export function PlotsTab({
             <motion.button
               onClick={() => setShown((n) => n + PAGE_SIZE)}
               whileTap={{ scale: 0.98 }}
-              className="w-full rounded-xl border border-deep/20 bg-white py-2.5 text-xs font-semibold text-deep transition active:bg-cream"
+              className="neu-button w-full py-2.5 text-xs font-semibold text-deep"
             >
               Show more plots ({filtered.length - visible.length} left)
             </motion.button>
@@ -381,21 +383,48 @@ function ReservePlotSheet({
   const [date, setDate] = useState(todayIso)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingReservation, setPendingReservation] =
+    useState<ClientReservation | null>(null)
+  const idFileRef = useRef<HTMLInputElement>(null)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    const idFile = idFileRef.current?.files?.[0]
+    if (!pendingReservation && !idFile) {
+      setError("Upload one valid government-issued ID to apply.")
+      return
+    }
     setBusy(true)
     setError(null)
+    let created = pendingReservation
     try {
-      const created = await createClientReservation({
-        plotId: plot.id,
-        date,
-        plotCategory,
-      })
+      if (!created) {
+        created = await createClientReservation({
+          plotId: plot.id,
+          date,
+          plotCategory,
+        })
+        setPendingReservation(created)
+      }
+      if (!idFile) {
+        throw new Error("Choose an ID file to finish your reservation.")
+      }
+      await uploadAttachment(
+        created.id,
+        new File([idFile], `Valid ID - ${idFile.name}`, {
+          type: idFile.type,
+        })
+      )
       reloadClientData()
       onReserved(created)
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      const message = err instanceof Error ? err.message : String(err)
+      setError(
+        created
+          ? `Reservation created, but the ID upload failed. Choose the file again and retry: ${message}`
+          : message
+      )
+    } finally {
       setBusy(false)
     }
   }
@@ -441,6 +470,25 @@ function ReservePlotSheet({
         </div>
 
         <div>
+          <label className={LABEL} htmlFor="reserve-valid-id">
+            <Upload size={12} className="mr-1 inline" />
+            One valid government-issued ID
+          </label>
+          <input
+            ref={idFileRef}
+            id="reserve-valid-id"
+            type="file"
+            accept="image/*,.pdf"
+            required={!pendingReservation}
+            className={INPUT}
+          />
+          <p className="mt-1 text-[11px] text-deep/50">
+            Upload a clear photo or PDF. This will be attached to your
+            reservation.
+          </p>
+        </div>
+
+        <div>
           <label className={LABEL} htmlFor="reserve-date">
             Preferred schedule
           </label>
@@ -465,9 +513,15 @@ function ReservePlotSheet({
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-xl bg-navy py-3 text-sm font-semibold text-cream transition active:bg-deep disabled:opacity-60"
+          className="neu-button w-full py-3 text-sm font-semibold text-deep disabled:opacity-60"
         >
-          {busy ? "Reserving..." : "Reserve this plot"}
+          {busy
+            ? pendingReservation
+              ? "Uploading ID..."
+              : "Reserving..."
+            : pendingReservation
+              ? "Retry ID upload"
+              : "Reserve this plot"}
         </button>
       </form>
     </Modal>

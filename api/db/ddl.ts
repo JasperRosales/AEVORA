@@ -7,6 +7,10 @@ export const DDL = `
 create table if not exists cemeteries (
   id text primary key, name text not null, location text not null
 );
+create table if not exists cemetery_map_placeholders (
+  cemetery_id text primary key references cemeteries(id),
+  rows integer not null, columns integer not null, placements text not null
+);
 create table if not exists plots (
   id text primary key, plot_number text not null,
   cemetery_id text not null references cemeteries(id),

@@ -6,6 +6,15 @@ export const cemeteries = pgTable("cemeteries", {
   location: text("location").notNull(),
 })
 
+export const cemeteryMapPlaceholders = pgTable("cemetery_map_placeholders", {
+  cemeteryId: text("cemetery_id")
+    .primaryKey()
+    .references(() => cemeteries.id),
+  rows: integer("rows").notNull(),
+  columns: integer("columns").notNull(),
+  placements: text("placements").notNull(),
+})
+
 export const plots = pgTable("plots", {
   id: text("id").primaryKey(),
   plotNumber: text("plot_number").notNull(),

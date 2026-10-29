@@ -132,7 +132,7 @@ export interface StaffUser {
 }
 
 export async function apiSend<T>(
-  method: "POST" | "PATCH" | "DELETE",
+  method: "POST" | "PATCH" | "PUT" | "DELETE",
   path: string,
   body?: unknown
 ): Promise<T> {
@@ -195,6 +195,37 @@ export interface NewPlot {
   status: Plot["status"]
   type: Plot["type"]
   groupName?: string
+}
+
+export interface MapPlaceholderPlacement {
+  row: number
+  column: number
+  plotId: string
+}
+
+export interface CemeteryMapPlaceholder {
+  rows: number
+  columns: number
+  placements: MapPlaceholderPlacement[]
+}
+
+export function fetchMapPlaceholder(
+  cemeteryId: string
+): Promise<CemeteryMapPlaceholder> {
+  return apiGet<CemeteryMapPlaceholder>(
+    `/cemeteries/${encodeURIComponent(cemeteryId)}/map-placeholder`
+  )
+}
+
+export function saveMapPlaceholder(
+  cemeteryId: string,
+  input: CemeteryMapPlaceholder
+): Promise<CemeteryMapPlaceholder> {
+  return apiSend<CemeteryMapPlaceholder>(
+    "PUT",
+    `/cemeteries/${encodeURIComponent(cemeteryId)}/map-placeholder`,
+    input
+  )
 }
 
 export interface NewReservation {

@@ -66,6 +66,113 @@ routes.get("/cemeteries", staffGuard, async (c) =>
   c.json(await db.select().from(schema.cemeteries))
 )
 
+routes.get("/cemeteries/:id/map-placeholder", staffGuard, async (c) => {
+  const cemeteryId = c.req.param("id")
+  const [placeholder] = await db
+    .select()
+    .from(schema.cemeteryMapPlaceholders)
+    .where(eq(schema.cemeteryMapPlaceholders.cemeteryId, cemeteryId))
+  if (!placeholder) return c.json({ rows: 0, columns: 0, placements: [] })
+
+  return c.json({
+    rows: placeholder.rows,
+    columns: placeholder.columns,
+    placements: JSON.parse(placeholder.placements) as {
+      row: number
+      column: number
+      plotId: string
+    }[],
+  })
+})
+
+routes.put("/cemeteries/:id/map-placeholder", staffGuard, async (c) => {
+  const cemeteryId = c.req.param("id")
+  const body = await c.req.json<Record<string, unknown>>()
+  const rows = Number(body.rows)
+  const columns = Number(body.columns)
+  if (
+    !Number.isInteger(rows) ||
+    !Number.isInteger(columns) ||
+    rows < 1 ||
+    columns < 1 ||
+    rows * columns > 1000
+  ) {
+    return c.json({ error: "Grid must contain between 1 and 1,000 cells" }, 400)
+  }
+
+  const [cemetery] = await db
+    .select({ id: schema.cemeteries.id })
+    .from(schema.cemeteries)
+    .where(eq(schema.cemeteries.id, cemeteryId))
+  if (!cemetery) return c.json({ error: "Unknown cemetery" }, 404)
+
+  if (!Array.isArray(body.placements)) {
+    return c.json({ error: "Grid placements are required" }, 400)
+  }
+  const placements: { row: number; column: number; plotId: string }[] = []
+  const occupiedCells = new Set<string>()
+  const placedPlotIds = new Set<string>()
+  for (const value of body.placements) {
+    if (!value || typeof value !== "object") {
+      return c.json({ error: "Invalid grid placement" }, 400)
+    }
+    const placement = value as Record<string, unknown>
+    const row = Number(placement.row)
+    const column = Number(placement.column)
+    const plotId = str(placement.plotId)
+    const cell = `${row}:${column}`
+    if (
+      !plotId ||
+      !Number.isInteger(row) ||
+      !Number.isInteger(column) ||
+      row < 1 ||
+      row > rows ||
+      column < 1 ||
+      column > columns ||
+      occupiedCells.has(cell) ||
+      placedPlotIds.has(plotId)
+    ) {
+      return c.json({ error: "Grid placements must be unique and in bounds" }, 400)
+    }
+    occupiedCells.add(cell)
+    placedPlotIds.add(plotId)
+    placements.push({ row, column, plotId })
+  }
+
+  if (placedPlotIds.size > 0) {
+    const matchingPlots = await db
+      .select({ id: schema.plots.id })
+      .from(schema.plots)
+      .where(
+        and(
+          eq(schema.plots.cemeteryId, cemeteryId),
+          inArray(schema.plots.id, [...placedPlotIds])
+        )
+      )
+    if (matchingPlots.length !== placedPlotIds.size) {
+      return c.json(
+        { error: "Every placed plot must belong to this cemetery" },
+        400
+      )
+    }
+  }
+
+  const saved = {
+    rows,
+    columns,
+    placements: JSON.stringify(placements),
+  }
+  await db
+    .insert(schema.cemeteryMapPlaceholders)
+    .values({ cemeteryId, ...saved })
+    .onConflictDoUpdate({
+      target: schema.cemeteryMapPlaceholders.cemeteryId,
+      set: saved,
+    })
+
+  return c.json({ rows, columns, placements })
+})
+
 routes.get("/plots", staffGuard, async (c) => {
   const rows = await db.select().from(schema.plots)
   return c.json(rows.map(toPlot))

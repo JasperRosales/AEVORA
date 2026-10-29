@@ -6,17 +6,26 @@ import {
   Home,
   Search,
 } from "lucide-react"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import { Card } from "@/components/ui/card"
 import { KpiTile } from "@/components/ui/kpi-tile"
 import { updatePlotRow, useData } from "@/data/store"
 import { formatCurrency } from "@/lib/format"
 import { fadeUp, pageSwap, stagger } from "@/lib/motion"
-import { updatePlot } from "@/lib/neon-api"
+import {
+  fetchMapPlaceholder,
+  updatePlot,
+  type CemeteryMapPlaceholder,
+} from "@/lib/neon-api"
 import { PLOT_CATEGORIES } from "@/lib/plot-category"
 import { plotStatusFill } from "@/lib/status"
-import type { Plot, PlotCategory, PlotStatus, Reservation } from "@/types/domain"
+import type {
+  Plot,
+  PlotCategory,
+  PlotStatus,
+  Reservation,
+} from "@/types/domain"
 import { CreateReservationModal } from "@/features/overview/overview-action-modals"
 import {
   DeletePlotModal,
@@ -27,6 +36,7 @@ import { PlotDetailsCard } from "./plot-details-panel"
 import { PlotGridBuilderModal } from "./plot-grid-builder"
 import { PlotListView } from "./plot-list-view"
 import { PlotMapCard } from "./plot-map-canvas"
+import { PlotMapPlaceholderModal } from "./plot-map-placeholder-modal"
 
 /**
  * Latest active reservation for a plot. Cancelled bookings are ignored: the
@@ -64,6 +74,11 @@ export function CemeteryMapPage() {
   const [view, setView] = useState<"Map" | "List">("Map")
   const [sectionColumns, setSectionColumns] = useState(2)
   const [builderOpen, setBuilderOpen] = useState(false)
+  const [mapPlaceholderOpen, setMapPlaceholderOpen] = useState(false)
+  const [savedMapPlaceholder, setSavedMapPlaceholder] = useState<{
+    cemeteryId: string
+    layout: CemeteryMapPlaceholder
+  } | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [statusBusy, setStatusBusy] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
@@ -116,7 +131,8 @@ export function CemeteryMapPage() {
   // snapshot: status changes, bookings and edits replace the row, and the
   // details panel should always show the fresh version.
   const selected = useMemo(
-    () => (selectedId ? (plots.find((p) => p.id === selectedId) ?? null) : null),
+    () =>
+      selectedId ? (plots.find((p) => p.id === selectedId) ?? null) : null,
     [plots, selectedId]
   )
 
@@ -179,6 +195,38 @@ export function CemeteryMapPage() {
   }
 
   const cemetery = cemeteries.find((c) => c.id === activeCemeteryId)
+  const mapPlaceholder =
+    savedMapPlaceholder?.cemeteryId === activeCemeteryId
+      ? savedMapPlaceholder.layout
+      : null
+
+  useEffect(() => {
+    if (!activeCemeteryId) return
+    let active = true
+    fetchMapPlaceholder(activeCemeteryId)
+      .then((layout) => {
+        if (active) {
+          setSavedMapPlaceholder({ cemeteryId: activeCemeteryId, layout })
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setNotice(
+            `Could not load the saved map placeholder: ${
+              err instanceof Error ? err.message : String(err)
+            }`
+          )
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [activeCemeteryId])
+
+  async function reloadMapPlaceholder() {
+    const layout = await fetchMapPlaceholder(activeCemeteryId)
+    setSavedMapPlaceholder({ cemeteryId: activeCemeteryId, layout })
+  }
 
   return (
     <motion.div
@@ -385,6 +433,7 @@ export function CemeteryMapPage() {
             <PlotMapCard
               plots={plots}
               cemeteryId={activeCemeteryId}
+              mapPlaceholder={mapPlaceholder}
               category={category}
               section={section}
               status={status}
@@ -392,6 +441,7 @@ export function CemeteryMapPage() {
               selected={selected}
               onSelect={selectPlot}
               onAddPlot={() => setBuilderOpen(true)}
+              onMapPlaceholder={() => setMapPlaceholderOpen(true)}
               onDeletePlot={setDeletingPlot}
               onStatusChange={changePlotStatus}
               statusBusy={statusBusy}
@@ -425,6 +475,26 @@ export function CemeteryMapPage() {
             setStatus("All")
             setCategory("All")
             setSearch("")
+          }}
+        />
+      )}
+
+      {mapPlaceholderOpen && cemetery && (
+        <PlotMapPlaceholderModal
+          cemetery={cemetery}
+          plots={plots.filter((plot) => plot.cemeteryId === cemetery.id)}
+          onClose={() => setMapPlaceholderOpen(false)}
+          onSaved={async () => {
+            try {
+              await reloadMapPlaceholder()
+              setNotice("Map placeholder saved.")
+            } catch (err) {
+              setNotice(
+                `Map saved, but could not reload it: ${
+                  err instanceof Error ? err.message : String(err)
+                }`
+              )
+            }
           }}
         />
       )}

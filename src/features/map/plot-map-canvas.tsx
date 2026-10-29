@@ -1,5 +1,6 @@
 import {
   LayoutGrid,
+  Map as MapIcon,
   Move,
   Plus,
   Trash2,
@@ -9,6 +10,7 @@ import {
 import { useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { PLOT_CATEGORIES, plotCategoryStroke } from "@/lib/plot-category"
+import type { CemeteryMapPlaceholder } from "@/lib/neon-api"
 import { plotStatusFill } from "@/lib/status"
 import type { Plot, PlotCategory, PlotStatus } from "@/types/domain"
 import { PlotLandMap, type LandMapPlot } from "./plot-land-map"
@@ -21,6 +23,7 @@ const STATUSES = Object.keys(plotStatusFill) as PlotStatus[]
 export function PlotMapCard({
   plots,
   cemeteryId,
+  mapPlaceholder,
   category,
   section,
   status,
@@ -28,6 +31,7 @@ export function PlotMapCard({
   selected,
   onSelect,
   onAddPlot,
+  onMapPlaceholder,
   onDeletePlot,
   onStatusChange,
   statusBusy = false,
@@ -36,6 +40,7 @@ export function PlotMapCard({
 }: {
   plots: Plot[]
   cemeteryId: string
+  mapPlaceholder: CemeteryMapPlaceholder | null
   category: PlotCategory | "All"
   section: string
   status: PlotStatus | "All"
@@ -43,6 +48,7 @@ export function PlotMapCard({
   selected: Plot | null
   onSelect: (plot: Plot | null) => void
   onAddPlot?: () => void
+  onMapPlaceholder: () => void
   onDeletePlot?: (plot: Plot) => void
   onStatusChange: (plot: Plot, status: PlotStatus) => void
   statusBusy?: boolean
@@ -57,20 +63,48 @@ export function PlotMapCard({
   const mapData = useMemo(() => {
     const cemeteryPlots = plots.filter((p) => p.cemeteryId === cemeteryId)
     const query = search.trim().toLowerCase()
-    const sections = [
-      {
-        name: "All",
-        plots: cemeteryPlots.map((p) => ({
-          id: p.id,
-          label: p.plotNumber,
-          row: p.row,
-          column: p.column,
-          status: p.status,
-          category: p.type,
-          groupName: p.groupName,
-        })),
-      },
-    ]
+    const plotsById = new Map(cemeteryPlots.map((plot) => [plot.id, plot]))
+    const hasPlaceholder =
+      mapPlaceholder !== null &&
+      mapPlaceholder.rows > 0 &&
+      mapPlaceholder.columns > 0
+    const sections = hasPlaceholder
+      ? [
+          {
+            name: "Map Placeholder",
+            gridRows: mapPlaceholder.rows,
+            gridColumns: mapPlaceholder.columns,
+            plots: mapPlaceholder.placements.flatMap((placement) => {
+              const plot = plotsById.get(placement.plotId)
+              if (!plot) return []
+              return [
+                {
+                  id: plot.id,
+                  label: plot.plotNumber,
+                  row: placement.row,
+                  column: placement.column,
+                  status: plot.status,
+                  category: plot.type,
+                  groupName: plot.groupName,
+                },
+              ]
+            }),
+          },
+        ]
+      : [
+          {
+            name: "All",
+            plots: cemeteryPlots.map((p) => ({
+              id: p.id,
+              label: p.plotNumber,
+              row: p.row,
+              column: p.column,
+              status: p.status,
+              category: p.type,
+              groupName: p.groupName,
+            })),
+          },
+        ]
     const visibleIds = new Set(
       cemeteryPlots
         .filter(
@@ -82,8 +116,8 @@ export function PlotMapCard({
         )
         .map((p) => p.id)
     )
-    return { sections, visibleIds }
-  }, [plots, cemeteryId, category, section, status, search])
+    return { sections, visibleIds, hasPlaceholder }
+  }, [plots, cemeteryId, mapPlaceholder, category, section, status, search])
 
   const groups = useMemo(() => {
     const byName = new Map<
@@ -105,6 +139,34 @@ export function PlotMapCard({
   }, [plots, cemeteryId])
 
   if (mapData.sections[0].plots.length === 0) {
+    if (mapData.hasPlaceholder) {
+      return (
+        <Card title="Cemetery Map">
+          <div className="mb-2 flex justify-end">
+            <button
+              type="button"
+              onClick={onMapPlaceholder}
+              className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
+            >
+              <MapIcon size={13} /> Map Placeholder
+            </button>
+          </div>
+          <div className="max-h-[600px] overflow-auto rounded-xl bg-[#f8f6f0]">
+            <PlotLandMap
+              sections={mapData.sections}
+              sectionColumns={sectionColumns}
+              ariaLabel="Cemetery placeholder map"
+              unified
+              customCols={undefined}
+            />
+          </div>
+          <p className="mt-2 text-xs text-deep/60">
+            The saved map has no plots placed yet. Use Map Placeholder to edit
+            the grid.
+          </p>
+        </Card>
+      )
+    }
     return (
       <Card title="Cemetery Map">
         <div className="flex flex-col items-center justify-center gap-3 py-14 text-center">
@@ -117,6 +179,13 @@ export function PlotMapCard({
               Build a grid to create a whole block of plots at once.
             </p>
           </div>
+          <button
+            type="button"
+            onClick={onMapPlaceholder}
+            className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
+          >
+            <MapIcon size={13} /> Map Placeholder
+          </button>
         </div>
       </Card>
     )
@@ -127,6 +196,13 @@ export function PlotMapCard({
       title="Cemetery Map"
       action={
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onMapPlaceholder}
+            className="neu-button flex items-center gap-1 px-2.5 py-1.5 text-xs"
+          >
+            <MapIcon size={13} /> Map Placeholder
+          </button>
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(0.3, z - 0.1))}

@@ -311,7 +311,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             onClick={() => zoomTo(zoom / 1.5)}
             disabled={zoom <= MIN_ZOOM}
             aria-label="Zoom out"
-            className="flex size-7 items-center justify-center rounded-full text-deep transition active:bg-cream disabled:opacity-30"
+            className="neu-button flex size-7 items-center justify-center text-deep disabled:opacity-30"
           >
             <ZoomOut size={15} />
           </button>
@@ -323,7 +323,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             onClick={() => zoomTo(zoom * 1.5)}
             disabled={zoom >= MAX_ZOOM}
             aria-label="Zoom in"
-            className="flex size-7 items-center justify-center rounded-full text-deep transition active:bg-cream disabled:opacity-30"
+            className="neu-button flex size-7 items-center justify-center text-deep disabled:opacity-30"
           >
             <ZoomIn size={15} />
           </button>
@@ -331,7 +331,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             type="button"
             onClick={reset}
             aria-label="Reset zoom"
-            className="flex size-7 items-center justify-center rounded-full text-deep/60 transition active:bg-cream"
+            className="neu-button flex size-7 items-center justify-center text-deep/60"
           >
             <RotateCcw size={13} />
           </button>
@@ -351,9 +351,12 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
       >
         <div
           ref={contentRef}
-          className="w-full origin-top-left will-change-transform"
+          className="w-full origin-top-left"
           style={{
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+            transform:
+              zoom === DEFAULT_ZOOM && pan.x === 0 && pan.y === 0
+                ? undefined
+                : `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
           }}
         >
           {children}
@@ -518,7 +521,7 @@ export function ClientPlotDetailsSheet({
             type="button"
             onClick={() => onReserve(plot)}
             whileTap={{ scale: 0.98 }}
-            className="w-full rounded-xl bg-navy py-3 text-sm font-semibold text-cream transition active:bg-deep"
+            className="neu-button w-full py-3 text-sm font-semibold text-deep"
           >
             Reserve this plot
           </motion.button>
@@ -532,7 +535,7 @@ export function ClientPlotDetailsSheet({
         <button
           type="button"
           onClick={onClose}
-          className="w-full py-1 text-xs font-medium text-deep/60 transition hover:text-deep"
+          className="neu-button w-full py-1 text-xs font-medium text-deep/60"
         >
           Back to map
         </button>

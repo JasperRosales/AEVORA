@@ -21,6 +21,8 @@ export interface LandMapPlot {
 export interface LandMapSection {
   name: string
   plots: LandMapPlot[]
+  gridRows?: number
+  gridColumns?: number
 }
 
 export interface MapElement {
@@ -89,6 +91,40 @@ function measure(section: LandMapSection): MeasuredSection {
  * Layout all plots in a single large unified grid.
  */
 function layoutUnified(sections: LandMapSection[], customCols?: number) {
+  const placeholder = sections[0]
+  if (
+    sections.length === 1 &&
+    placeholder.gridRows &&
+    placeholder.gridColumns
+  ) {
+    const positioned = placeholder.plots.map((plot) => ({
+      ...plot,
+      x: SECTION_PAD + (plot.column - 1) * (CELL + CELL_GAP),
+      y: SECTION_PAD + SECTION_HEADER + (plot.row - 1) * (CELL + CELL_GAP),
+    }))
+    const gridWidth =
+      placeholder.gridColumns * CELL + (placeholder.gridColumns - 1) * CELL_GAP
+    const gridHeight =
+      placeholder.gridRows * CELL + (placeholder.gridRows - 1) * CELL_GAP
+    const section: PositionedSection = {
+      name: placeholder.name,
+      plots: positioned,
+      gridRows: placeholder.gridRows,
+      gridColumns: placeholder.gridColumns,
+      rows: placeholder.gridRows,
+      columns: placeholder.gridColumns,
+      width: gridWidth + SECTION_PAD * 2,
+      height: gridHeight + SECTION_HEADER + SECTION_PAD * 2,
+      x: LAND_PAD,
+      y: LAND_PAD,
+    }
+    return {
+      sections: [section],
+      width: Math.max(320, section.width + LAND_PAD * 2),
+      height: Math.max(220, section.height + LAND_PAD * 2),
+    }
+  }
+
   const ordered: Array<{ sectionName: string; plot: LandMapPlot }> = []
   for (const section of sections) {
     for (const plot of section.plots) {
@@ -153,7 +189,8 @@ function layoutUnified(sections: LandMapSection[], customCols?: number) {
     const baseColumn = Math.min(...members.map((member) => member.column))
     let groupColumns =
       Math.max(...members.map((member) => member.column)) - baseColumn + 1
-    let groupRows = Math.max(...members.map((member) => member.row)) - baseRow + 1
+    let groupRows =
+      Math.max(...members.map((member) => member.row)) - baseRow + 1
 
     // Legacy groups (or very lopsided grids) can have a huge bounding box with
     // few members; fall back to a compact near-square block.
@@ -382,12 +419,7 @@ export function PlotLandMap({
     for (const section of drawing.sections) {
       section.plots.forEach((plot, index) => {
         if (!plot.groupName) return
-        const { x, y } = plotPosition(
-          section,
-          plot,
-          index,
-          plotPositions
-        )
+        const { x, y } = plotPosition(section, plot, index, plotPositions)
         const key = `${section.name}\u0000${plot.groupName}`
         const existing = boxes.get(key)
         const right = x + CELL + GROUP_PAD
@@ -401,8 +433,7 @@ export function PlotLandMap({
             width: CELL + GROUP_PAD * 2,
             height: CELL + GROUP_PAD * 2,
             count: 1,
-            stroke:
-              plotCategoryStroke[plot.category ?? "Typical Block"],
+            stroke: plotCategoryStroke[plot.category ?? "Typical Block"],
           })
           return
         }
@@ -642,7 +673,6 @@ export function PlotLandMap({
         />
       )}
 
-
       {/* Sections and their plots */}
       {drawing.sections.map((section) => {
         return (
@@ -671,6 +701,38 @@ export function PlotLandMap({
               >
                 {section.rows} × {section.columns}
               </text>
+            )}
+
+            {section.gridRows && section.gridColumns && (
+              <g pointerEvents="none">
+                {Array.from(
+                  { length: section.gridRows * section.gridColumns },
+                  (_, index) => {
+                    const row = Math.floor(index / section.gridColumns!) + 1
+                    const column = (index % section.gridColumns!) + 1
+                    return (
+                      <rect
+                        key={`placeholder-${row}-${column}`}
+                        x={SECTION_PAD + (column - 1) * (CELL + CELL_GAP)}
+                        y={
+                          SECTION_PAD +
+                          SECTION_HEADER +
+                          (row - 1) * (CELL + CELL_GAP)
+                        }
+                        width={CELL}
+                        height={CELL}
+                        rx={0.5}
+                        fill="#ffffff"
+                        fillOpacity={0.45}
+                        stroke="#102B52"
+                        strokeOpacity={0.18}
+                        strokeWidth={0.5}
+                        strokeDasharray="1 1"
+                      />
+                    )
+                  }
+                )}
+              </g>
             )}
 
             {groupBoxes
@@ -709,7 +771,8 @@ export function PlotLandMap({
 
             {section.plots.map((plot) => {
               const fill = plotStatusFill[plot.status]
-              const typeColor = plotCategoryStroke[plot.category ?? "Typical Block"]
+              const typeColor =
+                plotCategoryStroke[plot.category ?? "Typical Block"]
               const statusColor = fill.stroke ?? fill.fill
               const selected =
                 selectedId === plot.id || selectedPlots.has(plot.id)

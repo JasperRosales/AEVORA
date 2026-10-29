@@ -1,5 +1,5 @@
-import { CheckCircle2, Lock } from "lucide-react"
-import { useState, type FormEvent } from "react"
+import { CheckCircle2, Lock, Upload } from "lucide-react"
+import { useRef, useState, type FormEvent } from "react"
 import { motion } from "motion/react"
 import { Modal } from "@/components/ui/modal"
 import { StatusBadge } from "@/components/ui/status-badge"
@@ -12,6 +12,7 @@ import {
   type ClientReservation,
 } from "@/lib/client-api"
 import { EASE_OUT } from "@/lib/motion"
+import { uploadAttachment } from "@/lib/neon-api"
 import { ErrorNote, pesos } from "./client-ui"
 
 const LABEL =
@@ -87,6 +88,8 @@ export function PaymentSheet({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [receipt, setReceipt] = useState<ClientPayment | null>(null)
+  const [uploadedProof, setUploadedProof] = useState<File | null>(null)
+  const proofFileRef = useRef<HTMLInputElement>(null)
 
   function chooseType(next: PaymentType) {
     setType(next)
@@ -96,9 +99,23 @@ export function PaymentSheet({
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    const proofFile = proofFileRef.current?.files?.[0]
+    if (method !== "Cash" && !proofFile) {
+      setError("Upload your payment receipt or transfer confirmation.")
+      return
+    }
     setBusy(true)
     setError(null)
     try {
+      if (method !== "Cash" && proofFile && proofFile !== uploadedProof) {
+        await uploadAttachment(
+          reservation.id,
+          new File([proofFile], `Payment proof - ${proofFile.name}`, {
+            type: proofFile.type,
+          })
+        )
+        setUploadedProof(proofFile)
+      }
       const created = await createClientPayment({
         reservationId: reservation.id,
         type,
@@ -141,7 +158,7 @@ export function PaymentSheet({
           <p className="rounded-xl bg-cream px-3 py-2.5 text-xs text-deep/70">
             The office will confirm your payment. Until then it shows as{" "}
             <span className="font-semibold">Pending</span> in your Payments tab
-            — you can upload proof of payment on the reservation.
+            with your proof of payment attached to the reservation.
           </p>
 
           <div className="grid grid-cols-2 gap-2">
@@ -261,6 +278,27 @@ export function PaymentSheet({
                 ))}
               </select>
             </div>
+
+            {method !== "Cash" && (
+              <div>
+                <label className={LABEL} htmlFor="payment-proof">
+                  <Upload size={12} className="mr-1 inline" />
+                  Proof of payment
+                </label>
+                <input
+                  ref={proofFileRef}
+                  id="payment-proof"
+                  type="file"
+                  accept="image/*,.pdf"
+                  required
+                  className={INPUT}
+                />
+                <p className="mt-1 text-[11px] text-deep/50">
+                  Required for online, card, and bank transfer payments. Upload
+                  the receipt or transfer confirmation.
+                </p>
+              </div>
+            )}
 
             <p className="flex items-start gap-1.5 text-[11px] text-deep/50">
               <Lock size={12} className="mt-0.5 shrink-0" />
