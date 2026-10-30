@@ -52,6 +52,12 @@ export interface ClientPlot {
   location: string
 }
 
+export interface ClientMapPlaceholder {
+  rows: number
+  columns: number
+  placements: { row: number; column: number; plotId: string }[]
+}
+
 export interface ClientReservation {
   id: string
   reservation_number: string
@@ -112,9 +118,29 @@ export function fetchClientSummary(): Promise<ClientSummary> {
   return apiGet<ClientSummary>("/client/summary")
 }
 
+export function requestClientAccountChanges(input: {
+  fullName?: string
+  email?: string
+  contactNumber?: string
+}): Promise<{ ok: boolean }> {
+  return apiSend<{ ok: boolean }>(
+    "POST",
+    "/client/account-change-requests",
+    input
+  )
+}
+
 /** Every plot with its status, for the map (the list filters to Available). */
 export function fetchClientPlots(): Promise<ClientPlot[]> {
   return apiGet<ClientPlot[]>("/client/plots?scope=all")
+}
+
+export function fetchClientMapPlaceholder(
+  cemeteryId: string
+): Promise<ClientMapPlaceholder> {
+  return apiGet<ClientMapPlaceholder>(
+    `/client/cemeteries/${encodeURIComponent(cemeteryId)}/map-placeholder`
+  )
 }
 
 export function fetchClientReservations(): Promise<ClientReservation[]> {

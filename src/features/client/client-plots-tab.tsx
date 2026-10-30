@@ -6,12 +6,14 @@ import {
   RefreshCw,
   Upload,
 } from "lucide-react"
-import { useMemo, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
 import { motion } from "motion/react"
 import { Modal } from "@/components/ui/modal"
 import { reloadClientData, useClientData } from "@/data/client-store"
 import {
   createClientReservation,
+  fetchClientMapPlaceholder,
+  type ClientMapPlaceholder,
   type ClientPlot,
   type ClientReservation,
 } from "@/lib/client-api"
@@ -53,6 +55,12 @@ export function PlotsTab({
   // immediately. The tab is mounted after the portal data has loaded, so this
   // initialiser sees the real catalogue.
   const [cemetery, setCemetery] = useState(() => {
+    const mtZion = plots.find((plot) => plot.cemetery_id === "mt-zion")
+    if (mtZion) return mtZion.cemetery
+    const namedMtZion = plots.find((plot) =>
+      plot.cemetery.toLowerCase().includes("mt. zion")
+    )
+    if (namedMtZion) return namedMtZion.cemetery
     const first = plots.find((p) => p.status === "Available") ?? plots[0]
     return first?.cemetery ?? "All"
   })
@@ -63,11 +71,49 @@ export function PlotsTab({
   const [selected, setSelected] = useState<ClientPlot | null>(null)
   const [paying, setPaying] = useState<ClientReservation | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [mapLayoutState, setMapLayoutState] = useState<{
+    cemeteryId: string
+    status: "ready" | "error"
+    layout?: ClientMapPlaceholder
+    error?: string
+  } | null>(null)
 
   const cemeteries = useMemo(
     () => Array.from(new Set(plots.map((p) => p.cemetery))).sort(),
     [plots]
   )
+  const mapCemeteryId =
+    cemetery === "All"
+      ? null
+      : (plots.find((plot) => plot.cemetery === cemetery)?.cemetery_id ?? null)
+
+  useEffect(() => {
+    if (view !== "map" || !mapCemeteryId) return
+    let active = true
+    fetchClientMapPlaceholder(mapCemeteryId)
+      .then((layout) => {
+        if (active) {
+          setMapLayoutState({
+            cemeteryId: mapCemeteryId,
+            status: "ready",
+            layout,
+          })
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          setMapLayoutState({
+            cemeteryId: mapCemeteryId,
+            status: "error",
+            error: err instanceof Error ? err.message : String(err),
+          })
+        }
+      })
+    return () => {
+      active = false
+    }
+  }, [mapCemeteryId, view])
+
   const availablePlots = useMemo(
     () => plots.filter((p) => p.status === "Available"),
     [plots]
@@ -200,16 +246,16 @@ export function PlotsTab({
       </div>
 
       <div className="flex items-center justify-between gap-3">
-        <div className="flex rounded-xl border border-deep/20 bg-white p-0.5">
+        <div className="flex rounded-xl border border-deep/15 bg-white p-0.5">
           {(["map", "list"] as const).map((option) => (
             <button
               key={option}
               onClick={() => switchView(option)}
               aria-pressed={view === option}
-              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition ${
+              className={`flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 view === option
                   ? "bg-navy text-cream"
-                  : "neu-button text-deep/70"
+                  : "bg-white text-deep/65 hover:text-deep"
               }`}
             >
               {option === "map" ? <LayoutGrid size={13} /> : <List size={13} />}
@@ -230,7 +276,7 @@ export function PlotsTab({
           <button
             onClick={() => reloadClientData()}
             aria-label="Refresh plots"
-            className="neu-button flex size-8 items-center justify-center text-deep/70"
+            className="flex size-8 items-center justify-center rounded-lg text-deep/60 transition-colors hover:bg-cream active:bg-cream/70"
           >
             <RefreshCw size={13} />
           </button>
@@ -256,11 +302,22 @@ export function PlotsTab({
               ))}
             </div>
           </Card>
+        ) : mapLayoutState?.cemeteryId !== mapCemeteryId || !mapLayoutState ? (
+          <Card>
+            <p className="text-sm text-deep/60">Loading cemetery map…</p>
+          </Card>
+        ) : mapLayoutState.status === "error" ? (
+          <Card>
+            <p className="text-sm text-red-700">
+              Could not load the saved cemetery map: {mapLayoutState.error}
+            </p>
+          </Card>
         ) : (
           <ClientPlotMap
             plots={plots}
             cemetery={cemetery}
             category={category}
+            mapPlaceholder={mapLayoutState.layout ?? null}
             onSelect={setDetails}
           />
         )
@@ -319,7 +376,7 @@ export function PlotsTab({
                 <motion.button
                   onClick={() => setSelected(plot)}
                   whileTap={{ scale: 0.98 }}
-                  className="neu-button mt-3 w-full py-2.5 text-sm font-semibold text-deep"
+                  className="client-primary-button mt-3 w-full py-2.5 text-sm font-semibold"
                 >
                   Reserve this plot
                 </motion.button>
@@ -513,7 +570,7 @@ function ReservePlotSheet({
         <button
           type="submit"
           disabled={busy}
-          className="neu-button w-full py-3 text-sm font-semibold text-deep disabled:opacity-60"
+          className="client-primary-button w-full py-3 text-sm font-semibold disabled:opacity-60"
         >
           {busy
             ? pendingReservation

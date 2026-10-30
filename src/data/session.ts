@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react"
 import { authClient, clearAuthToken, isAuthConfigured } from "@/lib/auth"
 import { apiGet } from "@/lib/neon-api"
+import type { ClientSummary } from "@/lib/client-api"
 
 export interface SessionUser {
   id: string
@@ -52,18 +53,28 @@ export async function refreshSession() {
     const me = await apiGet<SessionUser>("/me")
     set({ status: "signedin", user: me })
   } catch {
-    // Token failed but a browser session exists — still let them in; the
-    // server will refuse unauthorized API calls.
-    // Fall back to the role on the auth session itself, not a hard-coded
-    // "user": a client must not be treated as the wrong audience just because
-    // /me was temporarily unreachable.
+    // On mobile, a transient failure on /me must not turn a client into a
+    // generic "user" and trigger the wrong-portal sign-out. Verify client
+    // identity through the separately scoped client endpoint before falling
+    // back to the auth session.
+    const authRole = (data.user as { role?: string }).role
+    let client: ClientSummary["client"] = null
+    if (!authRole || authRole === "user") {
+      try {
+        const summary = await apiGet<ClientSummary>("/client/summary")
+        client = summary.client
+      } catch {
+        // Keep the auth-session fallback below if the API is unavailable.
+      }
+    }
+
     set({
       status: "signedin",
       user: {
         id: data.user.id,
-        email: data.user.email ?? "",
-        name: data.user.name ?? "",
-        role: (data.user as { role?: string }).role ?? "user",
+        email: client?.email ?? data.user.email ?? "",
+        name: client?.fullName ?? data.user.name ?? "",
+        role: client ? "client" : (authRole ?? "user"),
       },
     })
   }

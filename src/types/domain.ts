@@ -2,10 +2,7 @@ export type PlotStatus =
   "Available" | "Reserved" | "Occupied" | "Waiting for Checking" | "Unavailable"
 
 export type PlotCategory =
-  | "Typical Block"
-  | "Premium Plot"
-  | "Special Premium Plot"
-  | "Lot with Trees"
+  "Typical Block" | "Premium Plot" | "Special Premium Plot" | "Lot with Trees"
 
 export type VerificationStatus =
   "Waiting for Checking" | "Under Review" | "Verified" | "Requires Action"
@@ -97,7 +94,13 @@ export interface Activity {
 export interface AppNotification {
   id: string
   message: string
-  type: "reservation" | "verification" | "payment" | "agreement" | "plot"
+  type:
+    | "reservation"
+    | "verification"
+    | "payment"
+    | "agreement"
+    | "plot"
+    | "account"
   dateTime: string
   read: boolean
 }

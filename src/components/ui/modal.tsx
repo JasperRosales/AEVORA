@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode } from "react"
+clearimport { useEffect, useId, useRef, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "motion/react"
 import { X } from "lucide-react"
@@ -21,6 +21,7 @@ export function Modal({
   description,
   children,
   footer,
+  panelClassName,
 }: {
   open: boolean
   onClose: () => void
@@ -28,6 +29,7 @@ export function Modal({
   description?: string
   children: ReactNode
   footer?: ReactNode
+  panelClassName?: string
 }) {
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
@@ -80,7 +82,7 @@ export function Modal({
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
           <motion.div
             aria-hidden="true"
             onClick={onClose}
@@ -101,7 +103,7 @@ export function Modal({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 18, scale: 0.985 }}
             transition={{ duration: 0.26, ease: EASE_OUT }}
-            className="relative flex max-h-[92svh] w-full max-w-4xl flex-col overflow-hidden rounded-t-3xl bg-cream shadow-[0_24px_80px_rgba(6,22,51,0.4)] outline-none sm:max-h-[85svh] sm:rounded-3xl"
+            className={`relative flex max-h-[92svh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-cream shadow-[0_24px_80px_rgba(6,22,51,0.4)] outline-none sm:max-h-[85svh] ${panelClassName ?? ""}`}
           >
             <header className="flex shrink-0 items-start gap-3 border-b border-deep/10 px-5 py-4">
               <div className="min-w-0 flex-1">

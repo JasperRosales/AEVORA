@@ -1,4 +1,4 @@
-import { Lock, Mail, Phone, User } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react"
 import { useState, type FormEvent } from "react"
 import { AnimatePresence, motion, type Variants } from "motion/react"
 import { EASE_OUT } from "@/lib/motion"
@@ -55,6 +55,7 @@ const float: Variants = {
 export function ClientLoginPage({ notice }: { notice: string | null }) {
   const form = useSignInForm(notice, "client")
   const [mode, setMode] = useState<"signin" | "register">("signin")
+  const [showPassword, setShowPassword] = useState(false)
   const [regFullName, setRegFullName] = useState("")
   const [regContact, setRegContact] = useState("")
   const [regEmail, setRegEmail] = useState("")
@@ -115,7 +116,7 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
         variants={float}
         animate="animate"
         transition={{ delay: 1.5 }}
-        className="pointer-events-none absolute -bottom-48 -right-32 h-96 w-96 rounded-full bg-cream/5 blur-3xl"
+        className="pointer-events-none absolute -right-32 -bottom-48 h-96 w-96 rounded-full bg-cream/5 blur-3xl"
       />
       <motion.div
         variants={float}
@@ -154,7 +155,11 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
             >
               Aevora
             </motion.p>
-            <motion.p variants={fadeUp} custom={1} className="text-xs text-cream/50">
+            <motion.p
+              variants={fadeUp}
+              custom={1}
+              className="text-xs text-cream/50"
+            >
               Cemetery System — Client Portal
             </motion.p>
           </motion.div>
@@ -231,7 +236,8 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                 <div>
                   <h1 className="mb-1 text-lg font-semibold">Sign in</h1>
                   <p className="mb-4 text-xs text-deep/60">
-                    Use your family account to view reservations, payments and documents.
+                    Use your family account to view reservations, payments and
+                    documents.
                   </p>
                 </div>
                 <div>
@@ -251,7 +257,7 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                       value={form.email}
                       onChange={(e) => form.setEmail(e.target.value)}
                       placeholder="family@email.com"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
                   </div>
                 </div>
@@ -266,14 +272,25 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                     />
                     <motion.input
                       whileFocus={{ scale: 1.01 }}
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       autoComplete="current-password"
                       value={form.password}
                       onChange={(e) => form.setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-10 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showPassword}
+                      className="absolute top-1/2 right-3 -translate-y-1/2 text-deep/50 transition-colors hover:text-navy"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
                 <AnimatePresence initial={false}>
@@ -314,7 +331,8 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                 <div>
                   <h1 className="mb-1 text-lg font-semibold">Create account</h1>
                   <p className="mb-4 text-xs text-deep/60">
-                    Register to access your family's records in the client portal.
+                    Register to access your family's records in the client
+                    portal.
                   </p>
                 </div>
                 <div>
@@ -332,7 +350,7 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                       value={regFullName}
                       onChange={(e) => setRegFullName(e.target.value)}
                       placeholder="Maria Santos"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
                   </div>
                 </div>
@@ -351,7 +369,7 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                       value={regContact}
                       onChange={(e) => setRegContact(e.target.value)}
                       placeholder="0917-555-0101"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
                   </div>
                 </div>
@@ -372,7 +390,7 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       placeholder="family@email.com"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
                   </div>
                 </div>
@@ -387,15 +405,26 @@ export function ClientLoginPage({ notice }: { notice: string | null }) {
                     />
                     <motion.input
                       whileFocus={{ scale: 1.01 }}
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       required
                       minLength={8}
                       autoComplete="new-password"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                      className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-10 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((visible) => !visible)}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                      aria-pressed={showPassword}
+                      className="absolute top-1/2 right-3 -translate-y-1/2 text-deep/50 transition-colors hover:text-navy"
+                    >
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
                 </div>
                 <AnimatePresence initial={false}>

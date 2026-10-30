@@ -11,7 +11,7 @@ import { MapPin, RotateCcw, ZoomIn, ZoomOut } from "lucide-react"
 import { motion } from "motion/react"
 import { Modal } from "@/components/ui/modal"
 import { StatusBadge } from "@/components/ui/status-badge"
-import type { ClientPlot } from "@/lib/client-api"
+import type { ClientMapPlaceholder, ClientPlot } from "@/lib/client-api"
 import { plotStatusFill } from "@/lib/status"
 import type { PlotCategory, PlotStatus } from "@/types/domain"
 import { PlotLandMap } from "../map/plot-land-map"
@@ -311,7 +311,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             onClick={() => zoomTo(zoom / 1.5)}
             disabled={zoom <= MIN_ZOOM}
             aria-label="Zoom out"
-            className="neu-button flex size-7 items-center justify-center text-deep disabled:opacity-30"
+            className="flex size-7 items-center justify-center rounded-lg text-deep transition-colors hover:bg-cream active:bg-cream/70 disabled:opacity-30"
           >
             <ZoomOut size={15} />
           </button>
@@ -323,7 +323,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             onClick={() => zoomTo(zoom * 1.5)}
             disabled={zoom >= MAX_ZOOM}
             aria-label="Zoom in"
-            className="neu-button flex size-7 items-center justify-center text-deep disabled:opacity-30"
+            className="flex size-7 items-center justify-center rounded-lg text-deep transition-colors hover:bg-cream active:bg-cream/70 disabled:opacity-30"
           >
             <ZoomIn size={15} />
           </button>
@@ -331,7 +331,7 @@ function ZoomablePlotMap({ children }: { children: ReactNode }) {
             type="button"
             onClick={reset}
             aria-label="Reset zoom"
-            className="neu-button flex size-7 items-center justify-center text-deep/60"
+            className="flex size-7 items-center justify-center rounded-lg text-deep/60 transition-colors hover:bg-cream active:bg-cream/70"
           >
             <RotateCcw size={13} />
           </button>
@@ -376,32 +376,63 @@ export function ClientPlotMap({
   plots,
   cemetery,
   category,
+  mapPlaceholder,
   onSelect,
 }: {
   plots: ClientPlot[]
   cemetery: string
   category: PlotCategory | "All"
+  mapPlaceholder: ClientMapPlaceholder | null
   onSelect: (plot: ClientPlot) => void
 }) {
   const cemeteryPlots = plots.filter((p) => p.cemetery === cemetery)
-  const sections = [...new Set(cemeteryPlots.map((p) => p.section))]
-    .sort(collator.compare)
-    .map((name) => ({
-      name,
-      plots: cemeteryPlots
-        .filter((p) => p.section === name)
-        .map((p) => ({
-          id: p.id,
-          label: shortLabel(p.plot_number),
-          row: p.row,
-          column: p.column,
-          status: p.status,
-          category: p.type,
-          groupName: p.group_name ?? undefined,
-        })),
-    }))
+  const plotsById = new Map(cemeteryPlots.map((plot) => [plot.id, plot]))
+  const hasMapPlaceholder =
+    !!mapPlaceholder && mapPlaceholder.rows > 0 && mapPlaceholder.columns > 0
+  const sections = hasMapPlaceholder
+    ? [
+        {
+          name: cemetery,
+          gridRows: mapPlaceholder.rows,
+          gridColumns: mapPlaceholder.columns,
+          plots: mapPlaceholder.placements.flatMap((placement) => {
+            const plot = plotsById.get(placement.plotId)
+            if (!plot) return []
+            return [
+              {
+                id: plot.id,
+                label: shortLabel(plot.plot_number),
+                row: placement.row,
+                column: placement.column,
+                status: plot.status,
+                category: plot.type,
+                groupName: plot.group_name ?? undefined,
+              },
+            ]
+          }),
+        },
+      ]
+    : [...new Set(cemeteryPlots.map((p) => p.section))]
+        .sort(collator.compare)
+        .map((name) => ({
+          name,
+          plots: cemeteryPlots
+            .filter((p) => p.section === name)
+            .map((p) => ({
+              id: p.id,
+              label: shortLabel(p.plot_number),
+              row: p.row,
+              column: p.column,
+              status: p.status,
+              category: p.type,
+              groupName: p.group_name ?? undefined,
+            })),
+        }))
 
-  if (sections.length === 0) {
+  if (
+    sections.length === 0 ||
+    (!hasMapPlaceholder && cemeteryPlots.length === 0)
+  ) {
     return (
       <Card>
         <p className="text-sm text-deep/70">
@@ -417,6 +448,7 @@ export function ClientPlotMap({
         <PlotLandMap
           sections={sections}
           sectionColumns={1}
+          unified={hasMapPlaceholder}
           onSelect={(id) => {
             const plot = cemeteryPlots.find((p) => p.id === id)
             if (plot) onSelect(plot)
@@ -521,7 +553,7 @@ export function ClientPlotDetailsSheet({
             type="button"
             onClick={() => onReserve(plot)}
             whileTap={{ scale: 0.98 }}
-            className="neu-button w-full py-3 text-sm font-semibold text-deep"
+            className="client-primary-button w-full py-3 text-sm font-semibold"
           >
             Reserve this plot
           </motion.button>

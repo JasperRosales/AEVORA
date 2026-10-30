@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto"
 import { Hono, type Context } from "hono"
 import { authGuard, clientRowFor, type AppEnv, type Caller } from "../lib/auth"
 import { pool } from "../services/database"
-import { notifyStaff, pesos } from "../lib/notifications"
+import {
+  notifyStaff,
+  pesos,
+  recordStaffNotification,
+} from "../lib/notifications"
 import { isDate, nextCode, oneOf, str, today } from "../lib/records"
 import { signDownloadUrl } from "../lib/storage"
 
@@ -101,13 +105,73 @@ routes.get("/client/summary", async (c) => {
     [name]
   )
   return c.json({
-    client,
+    client: {
+      id: client.id,
+      clientId: client.client_id,
+      fullName: client.full_name,
+      contactNumber: client.contact_number,
+      email: client.email,
+      type: client.type,
+      registeredAt: client.registered_at,
+      status: client.status,
+      reservations: client.reservations,
+    },
     profile: { name: caller.name, email: caller.email },
     reservations: res.rows[0].n,
     totalPaid: pay.rows[0].n,
     paymentCount: pay.rows[0].c,
     nextReservation: next.rows[0] ?? null,
   })
+})
+
+routes.post("/client/account-change-requests", async (c) => {
+  const { caller, client, name } = await clientScope(c)
+  if (caller.role !== "client") {
+    return c.json({ error: "Client accounts only." }, 403)
+  }
+  if (!client || !name) {
+    return c.json(
+      { error: "Your account is not linked to a client record yet." },
+      403
+    )
+  }
+
+  const body = await c.req.json<Record<string, unknown>>()
+  const fullName = str(body.fullName)
+  const email = str(body.email).toLowerCase()
+  const contactNumber = str(body.contactNumber)
+
+  if (!fullName && !email && !contactNumber) {
+    return c.json(
+      { error: "Enter at least one account detail to change." },
+      400
+    )
+  }
+  if (
+    fullName.length > 120 ||
+    email.length > 254 ||
+    contactNumber.length > 40
+  ) {
+    return c.json({ error: "One or more account details are too long." }, 400)
+  }
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return c.json({ error: "Enter a valid email address." }, 400)
+  }
+
+  const requestedChanges = [
+    fullName && `Name: ${fullName}`,
+    email && `Email: ${email}`,
+    contactNumber && `Contact: ${contactNumber}`,
+  ]
+    .filter(Boolean)
+    .join("; ")
+
+  await recordStaffNotification(
+    `Account detail change requested by ${name} (${client.client_id}, ${client.email}): ${requestedChanges}`,
+    "account"
+  )
+
+  return c.json({ ok: true }, 201)
 })
 
 /* ------------------------------ buying a plot ------------------------------ */
@@ -134,6 +198,38 @@ routes.get("/client/plots", async (c) => {
     [all]
   )
   return c.json(rows.rows)
+})
+
+routes.get("/client/cemeteries/:id/map-placeholder", async (c) => {
+  const { client } = await clientScope(c)
+  if (!client) {
+    return c.json(
+      { error: "Your account is not linked to a client record yet." },
+      403
+    )
+  }
+  const cemeteryId = c.req.param("id")
+  const result = await pool.query<{
+    rows: number
+    columns: number
+    placements: string
+  }>(
+    `select rows, columns, placements
+     from cemetery_map_placeholders
+     where cemetery_id = $1`,
+    [cemeteryId]
+  )
+  const placeholder = result.rows[0]
+  if (!placeholder) return c.json({ rows: 0, columns: 0, placements: [] })
+  return c.json({
+    rows: placeholder.rows,
+    columns: placeholder.columns,
+    placements: JSON.parse(placeholder.placements) as {
+      row: number
+      column: number
+      plotId: string
+    }[],
+  })
 })
 
 /**

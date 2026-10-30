@@ -3,11 +3,7 @@ import { pool } from "../services/database"
 
 /** Notification categories understood by the staff notification centre. */
 export type NotificationType =
-  | "reservation"
-  | "verification"
-  | "payment"
-  | "agreement"
-  | "plot"
+  "reservation" | "verification" | "payment" | "agreement" | "plot" | "account"
 
 /** `YYYY-MM-DD HH:mm` in Philippine time, the format stored in `date_time`. */
 const MANILA_TIME = new Intl.DateTimeFormat("en-CA", {
@@ -27,21 +23,28 @@ function timestamp(date = new Date()): string {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`
 }
 
+/** Writes a staff notification and propagates insert failures to the caller. */
+export async function recordStaffNotification(
+  message: string,
+  type: NotificationType
+): Promise<void> {
+  await pool.query(
+    `insert into notifications (id, message, type, date_time, is_read)
+     values ($1, $2, $3, $4, false)`,
+    [randomUUID(), message, type, timestamp()]
+  )
+}
+
 /**
- * Records a staff-facing notification for an event that happened in the
- * client portal. Writes are best-effort: a notification failure must never
- * fail the booking, payment or upload the client just made.
+ * Records a best-effort staff notification for client actions that should not
+ * fail when the notification feed is temporarily unavailable.
  */
 export async function notifyStaff(
   message: string,
   type: NotificationType
 ): Promise<void> {
   try {
-    await pool.query(
-      `insert into notifications (id, message, type, date_time, is_read)
-       values ($1, $2, $3, $4, false)`,
-      [randomUUID(), message, type, timestamp()]
-    )
+    await recordStaffNotification(message, type)
   } catch (error) {
     console.error("[notifications] failed to record staff notification:", error)
   }

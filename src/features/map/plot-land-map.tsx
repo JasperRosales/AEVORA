@@ -109,8 +109,6 @@ function layoutUnified(sections: LandMapSection[], customCols?: number) {
     const section: PositionedSection = {
       name: placeholder.name,
       plots: positioned,
-      gridRows: placeholder.gridRows,
-      gridColumns: placeholder.gridColumns,
       rows: placeholder.gridRows,
       columns: placeholder.gridColumns,
       width: gridWidth + SECTION_PAD * 2,

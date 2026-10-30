@@ -1,4 +1,5 @@
-import { Lock, Mail } from "lucide-react"
+import { Eye, EyeOff, Lock, Mail } from "lucide-react"
+import { useState } from "react"
 import { AnimatePresence, motion, type Variants } from "motion/react"
 import { EASE_OUT } from "@/lib/motion"
 import { useSignInForm } from "./sign-in-form"
@@ -59,6 +60,7 @@ const float: Variants = {
  */
 export function AdminLoginPage({ notice }: { notice: string | null }) {
   const form = useSignInForm(notice, "admin")
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
     <motion.div
@@ -76,7 +78,7 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
         variants={float}
         animate="animate"
         transition={{ delay: 1.5 }}
-        className="pointer-events-none absolute -bottom-48 -right-32 h-96 w-96 rounded-full bg-cream/5 blur-3xl"
+        className="pointer-events-none absolute -right-32 -bottom-48 h-96 w-96 rounded-full bg-cream/5 blur-3xl"
       />
       <motion.div
         variants={float}
@@ -107,11 +109,7 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
             whileTap={{ scale: 0.95 }}
             className="h-11 w-11 rounded-xl shadow-lg shadow-black/20"
           />
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-          >
+          <motion.div variants={stagger} initial="hidden" animate="show">
             <motion.p
               variants={fadeUp}
               custom={0}
@@ -136,11 +134,7 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
           animate="show"
           className="rounded-2xl bg-cream p-6 shadow-[0_20px_60px_rgba(0,0,0,0.4)]"
         >
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-          >
+          <motion.div variants={stagger} initial="hidden" animate="show">
             <motion.h1
               variants={fadeUp}
               custom={0}
@@ -173,7 +167,7 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
                   value={form.email}
                   onChange={(e) => form.setEmail(e.target.value)}
                   placeholder="admin@aevora.local"
-                  className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                  className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                 />
               </div>
             </motion.div>
@@ -189,14 +183,23 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
                 />
                 <motion.input
                   whileFocus={{ scale: 1.01 }}
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   autoComplete="current-password"
                   value={form.password}
                   onChange={(e) => form.setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-3 pl-9 text-sm outline-none transition-all focus:border-teal focus:ring-2 focus:ring-teal/30"
+                  className="w-full rounded-lg border border-deep/30 bg-white py-2 pr-10 pl-9 text-sm transition-all outline-none focus:border-teal focus:ring-2 focus:ring-teal/30"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-deep/50 transition-colors hover:text-navy"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
             </motion.div>
 
@@ -233,4 +236,3 @@ export function AdminLoginPage({ notice }: { notice: string | null }) {
     </motion.div>
   )
 }
-

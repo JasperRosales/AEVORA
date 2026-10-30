@@ -8,7 +8,7 @@ import {
 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import { signOut, useSession } from "@/data/session"
+import { signOut } from "@/data/session"
 import { ensureClientDataLoaded } from "@/data/client-store"
 import { EASE_OUT, layoutSpring } from "@/lib/motion"
 import { HomeTab } from "./client-home-tab"
@@ -21,7 +21,7 @@ import { ReservationsTab } from "./client-reservations-tab"
  * Aevora Client Portal — the mobile-first side of the app for families with a
  * reservation. Signed-in clients (role "client") land here instead of the
  * staff dashboard (see App.tsx). Designed phone-first: single column, bottom
- * tab bar, 44px touch targets; centered max-w-md column on desktop.
+ * tab bar, 44px touch targets; expands from a phone column to a tablet layout.
  */
 type Tab = "home" | "plots" | "reservations" | "payments" | "profile"
 
@@ -34,7 +34,6 @@ const TABS: { id: Tab; label: string; icon: typeof Home }[] = [
 ]
 
 export function ClientApp() {
-  const { user } = useSession()
   const [tab, setTab] = useState<Tab>("home")
   // Drives the slide direction of the tab transition (new tab in from its side).
   const [direction, setDirection] = useState(1)
@@ -52,7 +51,7 @@ export function ClientApp() {
   }, [])
 
   return (
-    <div className="mx-auto flex min-h-svh w-full max-w-md flex-col bg-cream">
+    <div className="client-portal mx-auto flex min-h-svh w-full max-w-md flex-col bg-cream md:max-w-3xl lg:max-w-5xl">
       {/* Top app bar */}
       <motion.header
         initial={{ opacity: 0, y: -10 }}
@@ -77,7 +76,7 @@ export function ClientApp() {
           <div className="min-w-0 flex-1">
             <p className="text-sm leading-tight font-bold">Aevora</p>
             <p className="truncate text-[11px] text-cream/60">
-              {user?.name ?? "Client Portal"}
+              Cemetery Care &amp; Planning
             </p>
           </div>
           <motion.button
@@ -85,7 +84,7 @@ export function ClientApp() {
             aria-label="Sign out"
             whileHover={{ scale: 1.06 }}
             whileTap={{ scale: 0.92 }}
-            className="rounded-full p-2.5 text-cream/80 transition hover:bg-white/10 active:bg-white/20"
+            className="client-primary-button flex items-center justify-center p-2.5"
           >
             <LogOut size={18} />
           </motion.button>
@@ -133,7 +132,7 @@ export function ClientApp() {
 
       {/* Bottom tab bar */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md border-t border-deep/10 bg-white/95 backdrop-blur"
+        className="fixed inset-x-0 bottom-0 z-10 mx-auto max-w-md border-t border-deep/10 bg-white/95 backdrop-blur md:max-w-3xl lg:max-w-5xl"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="grid grid-cols-5">

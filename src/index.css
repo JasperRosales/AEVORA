@@ -2,13 +2,17 @@
 
 @theme {
   --color-navy: #061633;
-  --color-deep: #102B52;
-  --color-teal: #4F7894;
-  --color-cream: #F4F2E8;
+  --color-deep: #102b52;
+  --color-teal: #4f7894;
+  --color-cream: #f4f2e8;
 }
 
 body {
-  background-color: color-mix(in srgb, var(--color-cream) 90%, var(--color-navy));
+  background-color: color-mix(
+    in srgb,
+    var(--color-cream) 90%,
+    var(--color-navy)
+  );
   color: var(--color-navy);
   font-family: "Segoe UI", system-ui, sans-serif;
 }
@@ -53,7 +57,9 @@ body {
     0 4px 0 rgba(6, 22, 51, 0.28),
     0 7px 12px rgba(6, 22, 51, 0.18),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
 
 .neu-button:hover {
@@ -72,6 +78,41 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
+.client-portal .neu-button:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 3px 0 rgba(6, 22, 51, 0.28),
+    0 5px 8px rgba(6, 22, 51, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.client-primary-button {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 0.75rem;
+  background: var(--color-navy);
+  color: var(--color-cream);
+  box-shadow:
+    0 4px 0 rgba(6, 22, 51, 0.35),
+    0 7px 12px rgba(6, 22, 51, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.client-primary-button:hover {
+  background: var(--color-deep);
+  transform: translateY(-1px);
+}
+
+.client-primary-button:active {
+  transform: translateY(1px);
+  box-shadow:
+    0 3px 0 rgba(6, 22, 51, 0.35),
+    0 5px 8px rgba(6, 22, 51, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
 /* Soften native inputs/selects — 3D raised look */
 input,
 select {
@@ -83,7 +124,9 @@ select {
     0 5px 9px rgba(6, 22, 51, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.9) !important;
   outline: none;
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 input:focus,
@@ -190,8 +233,7 @@ tbody tr:nth-child(even) {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding:
-    max(1.25rem, env(safe-area-inset-top))
+  padding: max(1.25rem, env(safe-area-inset-top))
     max(1.25rem, env(safe-area-inset-right))
     max(1.25rem, env(safe-area-inset-bottom))
     max(1.25rem, env(safe-area-inset-left));
