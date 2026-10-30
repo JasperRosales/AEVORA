@@ -1,4 +1,4 @@
-clearimport { useEffect, useId, useRef, type ReactNode } from "react"
+import { useEffect, useId, useRef, type ReactNode } from "react"
 import { createPortal } from "react-dom"
 import { AnimatePresence, motion } from "motion/react"
 import { X } from "lucide-react"
